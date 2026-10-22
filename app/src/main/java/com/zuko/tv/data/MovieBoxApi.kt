@@ -13,6 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.Locale
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
 /**
  * MovieBox integration through the MovieBox-pro API.
@@ -161,7 +162,7 @@ class MovieBoxApi(private val client: OkHttpClient) {
 
     private fun String.toHttpUrlChecked(): HttpUrl =
         try {
-            HttpUrl.get(this)
+            this.toHttpUrl()
         } catch (e: IllegalArgumentException) {
             throw IOException("Invalid MovieBox API URL.", e)
         }
