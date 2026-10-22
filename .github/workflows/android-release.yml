@@ -1,0 +1,69 @@
+name: Build ZUKO TV Release APK
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and sign APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || {
+            echo "ANDROID_KEYSTORE_BASE64 secret is missing"
+            exit 1
+          }
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zuko-tv-release.jks"
+          test -s "$RUNNER_TEMP/zuko-tv-release.jks"
+
+      - name: Build signed release APK
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/zuko-tv-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || {
+            echo "ANDROID_KEYSTORE_PASSWORD secret is missing"
+            exit 1
+          }
+          test -n "$ANDROID_KEY_ALIAS" || {
+            echo "ANDROID_KEY_ALIAS secret is missing"
+            exit 1
+          }
+          test -n "$ANDROID_KEY_PASSWORD" || {
+            echo "ANDROID_KEY_PASSWORD secret is missing"
+            exit 1
+          }
+          chmod +x ./gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZUKO-TV-v0.7.0-release
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14

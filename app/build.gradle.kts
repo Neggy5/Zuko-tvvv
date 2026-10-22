@@ -17,7 +17,18 @@ fun prop(key: String, default: String = ""): String =
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
 
+val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+
 android {
+    signingConfigs {
+        create("release") {
+            storeFile = releaseKeystorePath?.let { file(it) }
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "zukotv"
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+        }
+    }
+
     namespace = "com.zuko.tv"
     compileSdk = 36
 
@@ -40,7 +51,11 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (releaseKeystorePath.isNullOrBlank()) {
+                signingConfigs.getByName("debug")
+            } else {
+                signingConfigs.getByName("release")
+            }
         }
     }
 
