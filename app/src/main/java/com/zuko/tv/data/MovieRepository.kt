@@ -34,4 +34,10 @@ class MovieRepository(private val api: TmdbApi) {
     }
 
     suspend fun details(id: Int): MovieDetails = api.details(id)
+    suspend fun popularTv() = api.popularTv().results.filter { it.posterPath != null }
+    suspend fun searchTv(query: String) = api.searchTv(query).results.filter { it.posterPath != null }
+    suspend fun tvDetails(id: Int) = api.tvDetails(id)
+    suspend fun tvSeason(id: Int, season: Int) = api.tvSeason(id, season)
+    suspend fun genres() = api.genres().genres
+    suspend fun genreMovies(genreId: Int) = api.discoverGenre(genreId).results.filter { it.posterPath != null }
 }

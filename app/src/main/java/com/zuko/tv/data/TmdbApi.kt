@@ -71,6 +71,19 @@ class TmdbApi(
     suspend fun nowPlaying() = get("movie/now_playing", MovieList.serializer())
     suspend fun upcoming() = get("movie/upcoming", MovieList.serializer())
 
+    suspend fun genres() = get("genre/movie/list", GenreList.serializer())
+
+    suspend fun popularTv() = get("tv/popular", TvList.serializer())
+    suspend fun searchTv(query: String) = get("search/tv", TvList.serializer(), mapOf("query" to query, "include_adult" to "false"))
+    suspend fun tvDetails(id: Int) = get("tv/$id", TvDetails.serializer())
+    suspend fun tvSeason(id: Int, season: Int) = get("tv/$id/season/$season", TvSeasonDetails.serializer())
+
+    suspend fun discoverGenre(genreId: Int, page: Int = 1) = get(
+        path = "discover/movie",
+        serializer = MovieList.serializer(),
+        query = mapOf("with_genres" to genreId.toString(), "page" to page.toString(), "sort_by" to "popularity.desc", "include_adult" to "false"),
+    )
+
     suspend fun search(query: String, page: Int = 1) = get(
         path = "search/movie",
         serializer = MovieList.serializer(),

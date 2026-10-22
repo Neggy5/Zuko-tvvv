@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import android.net.Uri
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -72,7 +73,7 @@ class MainActivity : ComponentActivity() {
                         },
                 ) {
                     // The app is composed underneath so movies load while the intro plays.
-                    ZukoApp(dark = dark, onToggleTheme = { app.themeStore.toggle() })
+                    ZukoApp(dark = dark, onToggleTheme = { app.themeStore.toggle() }, onThemeMode = { app.themeStore.setMode(it) })
                     if (showSplash) {
                         SplashIntro(onFinished = { showSplash = false })
                     }
@@ -83,7 +84,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit) {
+private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (String) -> Unit) {
     val navController = rememberNavController()
     val app = LocalContext.current.applicationContext as ZukoApplication
     val repository = app.repository
@@ -105,9 +106,48 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit) {
                 viewModel = viewModel,
                 darkTheme = dark,
                 onToggleTheme = onToggleTheme,
+                onOpenSettings = { navController.navigate("settings") },
+                onOpenGenres = { navController.navigate("genres") },
+                onOpenTvShows = { navController.navigate("tvshows") },
                 onOpenMovie = { id: Int ->
                     runCatching { navController.navigate("detail/$id") }
                 },
+            )
+        }
+        composable("genres") {
+            com.zuko.tv.ui.GenreScreen(repository = repository, onBack = { navController.popBackStack() }, onOpenMovie = { id -> navController.navigate("detail/$id") })
+        }
+        composable("tvshows") {
+            com.zuko.tv.ui.TvShowsScreen(repository = repository, onBack = { navController.popBackStack() }, onPlay = { showId, title, year, season, episode, count ->
+                navController.navigate("tvplayer/$showId/${Uri.encode(title)}/${year.ifBlank { "0" }}/$season/$episode/$count")
+            })
+        }
+        composable(
+            route = "tvplayer/{showId}/{title}/{year}/{season}/{episode}/{count}",
+            arguments = listOf(
+                navArgument("showId") { type = NavType.IntType }, navArgument("title") { type = NavType.StringType },
+                navArgument("year") { type = NavType.StringType }, navArgument("season") { type = NavType.IntType },
+                navArgument("episode") { type = NavType.IntType }, navArgument("count") { type = NavType.IntType },
+            ),
+        ) { entry ->
+            val showId = entry.arguments?.getInt("showId") ?: return@composable
+            val title = Uri.decode(entry.arguments?.getString("title").orEmpty())
+            val year = entry.arguments?.getString("year").orEmpty().takeUnless { it == "0" }.orEmpty()
+            val season = entry.arguments?.getInt("season") ?: 1
+            val episode = entry.arguments?.getInt("episode") ?: 1
+            val count = entry.arguments?.getInt("count") ?: episode
+            com.zuko.tv.ui.TvPlayerScreen(showId, title, year, season, episode, count, streamRepository,
+                onBack = { navController.popBackStack() },
+                onNextEpisode = { navController.navigate("tvplayer/$showId/${Uri.encode(title)}/${year.ifBlank { "0" }}/$season/${episode + 1}/$count") { popUpTo("tvplayer/$showId/${Uri.encode(title)}/${year.ifBlank { "0" }}/$season/$episode/$count") { inclusive = true } } },
+            )
+        }
+        composable("settings") {
+            val mode by app.themeStore.mode.collectAsState()
+            com.zuko.tv.ui.SettingsScreen(
+                onBack = { navController.popBackStack() },
+                watchHistory = app.watchHistory,
+                currentTheme = mode,
+                onTheme = onThemeMode,
             )
         }
         composable(

@@ -56,6 +56,9 @@ class WatchHistory(context: Context) {
     }
 
     @Synchronized
+    fun clear() { persist(emptyList()) }
+
+    @Synchronized
     fun remove(id: Int) {
         persist(_items.value.filterNot { it.id == id })
     }

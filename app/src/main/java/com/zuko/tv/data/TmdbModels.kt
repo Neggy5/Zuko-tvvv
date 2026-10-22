@@ -74,3 +74,51 @@ fun Int?.toRuntimeLabel(): String? {
     val m = minutes % 60
     return if (h > 0) "${h}h ${m}m" else "${m}m"
 }
+
+@Serializable
+data class GenreList(val genres: List<Genre> = emptyList())
+
+
+@Serializable
+data class TvSummary(
+    val id: Int,
+    @SerialName("name") val name: String = "",
+    val overview: String = "",
+    @SerialName("poster_path") val posterPath: String? = null,
+    @SerialName("backdrop_path") val backdropPath: String? = null,
+    @SerialName("first_air_date") val firstAirDate: String? = null,
+    @SerialName("vote_average") val voteAverage: Double = 0.0,
+)
+
+@Serializable
+data class TvList(val results: List<TvSummary> = emptyList())
+
+@Serializable
+data class TvSeasonSummary(
+    @SerialName("season_number") val seasonNumber: Int = 0,
+    val name: String = "",
+    @SerialName("episode_count") val episodeCount: Int = 0,
+    @SerialName("poster_path") val posterPath: String? = null,
+)
+
+@Serializable
+data class TvDetails(
+    val id: Int,
+    @SerialName("name") val name: String = "",
+    val overview: String = "",
+    @SerialName("first_air_date") val firstAirDate: String? = null,
+    val seasons: List<TvSeasonSummary> = emptyList(),
+)
+
+@Serializable
+data class TvEpisode(
+    val id: Int = 0,
+    @SerialName("episode_number") val episodeNumber: Int = 0,
+    @SerialName("season_number") val seasonNumber: Int = 0,
+    val name: String = "",
+    val overview: String = "",
+    @SerialName("still_path") val stillPath: String? = null,
+)
+
+@Serializable
+data class TvSeasonDetails(val episodes: List<TvEpisode> = emptyList())

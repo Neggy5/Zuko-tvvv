@@ -77,6 +77,9 @@ fun HomeScreen(
     onOpenMovie: (Int) -> Unit,
     darkTheme: Boolean,
     onToggleTheme: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenGenres: () -> Unit,
+    onOpenTvShows: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val query by viewModel.query.collectAsState()
@@ -117,6 +120,10 @@ fun HomeScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
+                    Spacer(Modifier.width(8.dp))
+                    TextButton(onClick = onOpenGenres) { Text("Genres") }
+                    TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                    TextButton(onClick = onOpenSettings) { Text("Settings") }
                 }
                 if (isSearching) {
                     SearchResultsPane(
