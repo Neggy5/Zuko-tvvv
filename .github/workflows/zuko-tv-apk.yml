@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 45
 
     env:
-      HAS_KEYSTORE: ${{ secrets.ZUKO_KEYSTORE_BASE64 != '' }}
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
       TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
       STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
@@ -35,20 +35,14 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: ""
 
       - name: Accept Android SDK licenses
-        shell: bash
         run: yes | sdkmanager --licenses || true
 
       - name: Install Android SDK packages
         shell: bash
         run: |
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;36.0.0"
+          sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -79,20 +73,20 @@ jobs:
       - name: Restore release keystore
         if: env.HAS_KEYSTORE == 'true'
         env:
-          KEYSTORE_B64: ${{ secrets.ZUKO_KEYSTORE_BASE64 }}
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         shell: bash
         run: |
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/zuko-release.jks"
-          echo "ZUKO_KEYSTORE_FILE=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
 
       - name: Build signed release APK
         if: env.HAS_KEYSTORE == 'true'
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
-          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
-          ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
-          ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
+          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ZUKO_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ZUKO_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           ./gradlew :app:assembleRelease \
             --no-daemon \
