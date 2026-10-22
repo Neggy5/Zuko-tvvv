@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -106,24 +107,55 @@ fun HomeScreen(
             val allRows = remember(s.rows, continueItems) { buildRows(s.rows, continueItems) }
             val progress = remember(continueItems) { continueItems.associate { it.id to it.progress } }
             Column(modifier = Modifier.fillMaxSize().background(Ink)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 48.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    SearchBar(
-                        query = query,
-                        onQuery = viewModel::setQuery,
-                        onClear = viewModel::clearQuery,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
-                    Spacer(Modifier.width(8.dp))
-                    TextButton(onClick = onOpenGenres) { Text("Genres") }
-                    TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
-                    TextButton(onClick = onOpenSettings) { Text("Settings") }
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val compactLayout = maxWidth < 700.dp
+
+                    if (compactLayout) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                        ) {
+                            SearchBar(
+                                query = query,
+                                onQuery = viewModel::setQuery,
+                                onClear = viewModel::clearQuery,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
+                                Spacer(Modifier.width(6.dp))
+                                TextButton(onClick = onOpenGenres) { Text("Genres") }
+                                TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                                TextButton(onClick = onOpenSettings) { Text("Settings") }
+                            }
+                        }
+                    } else {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 48.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            SearchBar(
+                                query = query,
+                                onQuery = viewModel::setQuery,
+                                onClear = viewModel::clearQuery,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = onOpenGenres) { Text("Genres") }
+                            TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                            TextButton(onClick = onOpenSettings) { Text("Settings") }
+                        }
+                    }
                 }
                 if (isSearching) {
                     SearchResultsPane(

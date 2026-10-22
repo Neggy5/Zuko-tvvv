@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Resolves playable URLs for a title.
- * Order: Runflix Stremio addon (Railway) -> optional public STREAM_API_BASE backend.
+ * Order: Omega/MovieBox -> Runflix Stremio addon -> optional public STREAM_API_BASE backend.
  * Results are cached briefly so Play / Download feel instant after the first lookup.
  */
 class StreamRepository(
@@ -51,28 +51,29 @@ class StreamRepository(
         val errors = mutableListOf<String>()
         var urls: List<String> = emptyList()
 
-        if (runflix.isConfigured) {
-            try {
-                urls = runflix.resolvePlayUrls(safeTitle, year)
-                if (urls.isEmpty()) errors += "Runflix: no stream for this title"
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                errors += "Runflix: ${e.message ?: e.javaClass.simpleName}"
-            }
-        } else {
-            errors += "Runflix: not configured"
+        // Primary provider: Omega / MovieBox.
+        try {
+            urls = movieBox.resolve(safeTitle, year)
+            if (urls.isEmpty()) errors += "Omega: no playable stream"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            errors += "Omega: ${e.message ?: e.javaClass.simpleName}"
         }
 
-        // MovieBox is an additional source; keep Runflix as the first choice.
+        // Secondary provider: Runflix. Only try it if Omega has no stream.
         if (urls.isEmpty()) {
-            try {
-                urls = movieBox.resolve(safeTitle, year)
-                if (urls.isEmpty()) errors += "MovieBox: no playable stream"
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Throwable) {
-                errors += "MovieBox: ${e.message ?: e.javaClass.simpleName}"
+            if (runflix.isConfigured) {
+                try {
+                    urls = runflix.resolvePlayUrls(safeTitle, year)
+                    if (urls.isEmpty()) errors += "Runflix: no stream for this title"
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Throwable) {
+                    errors += "Runflix: ${e.message ?: e.javaClass.simpleName}"
+                }
+            } else {
+                errors += "Runflix: not configured"
             }
         }
 
