@@ -33,7 +33,7 @@ android {
         buildConfigField(
             "String",
             "RUNFLIX_ADDON_BASE",
-            "\"${prop("RUNFLIX_ADDON_BASE", "https://fuzzy-fortnight-production.up.railway.app")}\""
+            "\"${prop("RUNFLIX_ADDON_BASE", "https://athletic-consideration-production-c842.up.railway.app")}\""
         )
     }
 
