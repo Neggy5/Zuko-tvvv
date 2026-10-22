@@ -1,11 +1,8 @@
 package com.zuko.tv.ui.splash
 
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
@@ -21,7 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -84,6 +85,15 @@ private fun markPath(cx: Float, cy: Float, s: Float): Path = Path().apply {
     close()
 }
 
+/**
+ * Intro progress 0..1, driven by real frame time. Deliberately not an Animatable: many TV boxes
+ * turn system animations off (animator scale 0), which makes Compose animations jump to the end
+ * and the intro would vanish instantly.
+ */
+private class IntroClock {
+    var value by mutableFloatStateOf(0f)
+}
+
 private class Dot(
     val x: Float,
     val y: Float,
@@ -100,7 +110,7 @@ private class Dot(
  */
 @Composable
 fun SplashIntro(onFinished: () -> Unit) {
-    val t = remember { Animatable(0f) }
+    val t = remember { IntroClock() }
     val focusRequester = remember { FocusRequester() }
     val dots = remember {
         val rnd = Random(7)
@@ -118,7 +128,16 @@ fun SplashIntro(onFinished: () -> Unit) {
 
     LaunchedEffect(Unit) {
         runCatching { focusRequester.requestFocus() }
-        t.animateTo(1f, tween(durationMillis = TOTAL_MS, easing = LinearEasing))
+        var last = withFrameNanos { it }
+        var elapsedMs = 0f
+        while (elapsedMs < TOTAL_MS) {
+            val now = withFrameNanos { it }
+            // Cap each step so a hitch (the app loading underneath) can't skip part of the intro.
+            elapsedMs += ((now - last) / 1_000_000f).coerceAtMost(48f)
+            last = now
+            t.value = (elapsedMs / TOTAL_MS).coerceIn(0f, 1f)
+        }
+        t.value = 1f
         onFinished()
     }
 

@@ -1,7 +1,6 @@
 package com.zuko.tv.ui.theme
 
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -9,6 +8,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -67,11 +67,18 @@ object ZukoType {
 @Composable
 fun ZukoTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     LaunchedEffect(darkTheme) {
-        animate(
-            initialValue = ZukoPalette.darkness,
-            targetValue = if (darkTheme) 1f else 0f,
-            animationSpec = tween(durationMillis = 320),
-        ) { value, _ -> ZukoPalette.darkness = value }
+        val from = ZukoPalette.darkness
+        val to = if (darkTheme) 1f else 0f
+        if (from != to) {
+            // Frame-time based so it still fades when system animations are switched off.
+            val start = withFrameNanos { it }
+            var f = 0f
+            while (f < 1f) {
+                val now = withFrameNanos { it }
+                f = ((now - start) / 1_000_000f / 320f).coerceIn(0f, 1f)
+                ZukoPalette.darkness = from + (to - from) * FastOutSlowInEasing.transform(f)
+            }
+        }
     }
     MaterialTheme(
         colorScheme = darkColorScheme(
