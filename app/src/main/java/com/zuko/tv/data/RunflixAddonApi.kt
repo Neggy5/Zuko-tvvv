@@ -10,6 +10,8 @@ import okhttp3.Request
 import java.io.IOException
 import java.net.URLEncoder
 import java.util.Locale
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 
 /**
  * Client for the ZUKO Runflix Stremio addon hosted on Railway.
@@ -61,6 +63,68 @@ class RunflixAddonApi(
         val body = get("/stream/movie/$id.json")
         json.decodeFromString<StreamResponse>(body).streams
             .filter { !it.url.isNullOrBlank() }
+    }
+
+    /** Wakes the Railway service up (cold start) without caring about the result. */
+    suspend fun warmUp() = withContext(Dispatchers.IO) {
+        if (!isConfigured) return@withContext
+        try {
+            val warmClient = client.newBuilder().callTimeout(20, TimeUnit.SECONDS).build()
+            val req = Request.Builder()
+                .url("$baseUrl/manifest.json")
+                .header("User-Agent", "ZukoTV/0.5")
+                .get()
+                .build()
+            warmClient.newCall(req).execute().close()
+        } catch (_: Throwable) {
+            // best effort only
+        }
+    }
+
+    /**
+     * Returns several candidate stream URLs, best first: the closest title match's streams by
+     * quality, then streams of the next-best matches. Used so the player can fall back.
+     */
+    suspend fun resolvePlayUrls(title: String, year: String? = null, maxUrls: Int = 6): List<String> {
+        val metas = searchMovies(title)
+        if (metas.isEmpty()) return emptyList()
+
+        val titleNorm = title.trim().lowercase(Locale.US)
+        val yearNorm = year?.trim()?.take(4)
+        val ranked = metas.sortedWith(
+            compareByDescending<MetaPreview> {
+                val n = it.name?.trim()?.lowercase(Locale.US).orEmpty()
+                when {
+                    n == titleNorm -> 3
+                    n.contains(titleNorm) || titleNorm.contains(n) -> 2
+                    else -> 1
+                }
+            }.thenByDescending {
+                if (yearNorm != null && it.releaseInfo?.contains(yearNorm) == true) 1 else 0
+            }
+        )
+
+        val urls = LinkedHashSet<String>()
+        var lastError: Exception? = null
+        for (meta in ranked.take(3)) {
+            val id = meta.id ?: continue
+            val streams = try {
+                streamsFor(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastError = e
+                continue
+            }
+            streams
+                .sortedByDescending { qualityScore(it.name.orEmpty() + " " + it.title.orEmpty()) }
+                .mapNotNull { it.url?.trim() }
+                .filter { it.startsWith("http://") || it.startsWith("https://") }
+                .forEach { urls += it }
+            if (urls.size >= maxUrls) break
+        }
+        if (urls.isEmpty()) lastError?.let { throw it }
+        return urls.take(maxUrls)
     }
 
     /**

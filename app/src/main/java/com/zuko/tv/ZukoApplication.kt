@@ -4,6 +4,11 @@ import android.app.Application
 import com.zuko.tv.data.MovieRepository
 import com.zuko.tv.data.StreamRepository
 import com.zuko.tv.data.TmdbApi
+import com.zuko.tv.data.WatchHistory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
@@ -16,6 +21,16 @@ class ZukoApplication : Application() {
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    val watchHistory: WatchHistory by lazy { WatchHistory(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Wake the Railway addon early so Play doesn't hit a cold start.
+        appScope.launch { streamRepository.warmUp() }
     }
 
     val repository: MovieRepository by lazy {

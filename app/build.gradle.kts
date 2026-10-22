@@ -25,8 +25,8 @@ android {
         applicationId = "com.zuko.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 6
-        versionName = "0.4.0-search-download"
+        versionCode = 7
+        versionName = "0.5.0-resilient-playback"
 
         buildConfigField("String", "TMDB_API_KEY", "\"${prop("TMDB_API_KEY")}\"")
         buildConfigField("String", "STREAM_API_BASE", "\"${prop("STREAM_API_BASE")}\"")

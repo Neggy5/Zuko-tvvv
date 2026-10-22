@@ -55,6 +55,7 @@ import com.zuko.tv.R
 import com.zuko.tv.data.HomeRow
 import com.zuko.tv.data.MovieSummary
 import com.zuko.tv.data.Tmdb
+import com.zuko.tv.data.WatchItem
 import com.zuko.tv.data.toYear
 import com.zuko.tv.ui.components.CenterMessage
 import com.zuko.tv.ui.components.PosterCard
@@ -93,6 +94,9 @@ fun HomeScreen(
         )
         is HomeUiState.Ready -> {
             val isSearching = query.isNotBlank()
+            val continueItems by viewModel.continueWatching.collectAsState()
+            val allRows = remember(s.rows, continueItems) { buildRows(s.rows, continueItems) }
+            val progress = remember(continueItems) { continueItems.associate { it.id to it.progress } }
             Column(modifier = Modifier.fillMaxSize().background(Ink)) {
                 SearchBar(
                     query = query,
@@ -112,7 +116,7 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 } else {
-                    HomeContent(s.rows, viewModel.focusMemory, onOpenMovie)
+                    HomeContent(allRows, viewModel.focusMemory, onOpenMovie, progress)
                 }
             }
         }
@@ -212,11 +216,20 @@ private fun SearchResultsPane(
     }
 }
 
+private const val CONTINUE_TITLE = "Continue watching"
+
+private fun buildRows(rows: List<HomeRow>, continueItems: List<WatchItem>): List<HomeRow> {
+    if (continueItems.isEmpty()) return rows
+    return listOf(HomeRow(CONTINUE_TITLE, continueItems.map { it.toSummary() })) +
+        rows.filterNot { it.title == CONTINUE_TITLE }
+}
+
 @Composable
 private fun HomeContent(
     rows: List<HomeRow>,
     memory: FocusMemory,
     onOpenMovie: (Int) -> Unit,
+    progress: Map<Int, Float>,
 ) {
     if (rows.isEmpty()) {
         CenterMessage(title = "No movies")
@@ -251,6 +264,7 @@ private fun HomeContent(
                 MovieRow(
                     title = row.title,
                     movies = row.movies,
+                    progress = if (row.title == CONTINUE_TITLE) progress else emptyMap(),
                     initialIndex = if (rowIndex == startRow) startCol else 0,
                     restoreIndex = if (rowIndex == startRow) startCol else -1,
                     restoreRequester = restoreFocus,
@@ -277,6 +291,7 @@ private fun HomeContent(
 private fun MovieRow(
     title: String,
     movies: List<MovieSummary>,
+    progress: Map<Int, Float>,
     initialIndex: Int,
     restoreIndex: Int,
     restoreRequester: FocusRequester,
@@ -302,6 +317,7 @@ private fun MovieRow(
                     movie = movie,
                     onClick = { onOpen(movie.id) },
                     onFocus = { onFocused(index, movie) },
+                    progress = progress[movie.id],
                     modifier = if (index == restoreIndex) Modifier.focusRequester(restoreRequester) else Modifier,
                 )
             }

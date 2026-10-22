@@ -38,6 +38,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.zuko.tv.data.MovieRepository
 import com.zuko.tv.data.StreamRepository
+import com.zuko.tv.data.WatchHistory
+import kotlinx.coroutines.delay
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -45,6 +47,7 @@ fun PlayerScreen(
     movieId: Int,
     movieRepository: MovieRepository,
     streamRepository: StreamRepository,
+    watchHistory: WatchHistory,
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
@@ -55,7 +58,7 @@ fun PlayerScreen(
         key = "player-$movieId",
         factory = viewModelFactory {
             initializer {
-                PlayerViewModel(movieRepository, streamRepository, movieId)
+                PlayerViewModel(movieRepository, streamRepository, watchHistory, movieId)
             }
         },
     )
@@ -76,6 +79,9 @@ fun PlayerScreen(
     DisposableEffect(player) {
         onDispose {
             runCatching {
+                playerViewModel.saveProgress(player.currentPosition, player.duration)
+            }
+            runCatching {
                 player.stop()
                 player.clearMediaItems()
                 player.release()
@@ -94,7 +100,7 @@ fun PlayerScreen(
             crashMsg != null -> {
                 ErrorPane(message = crashMsg, onRetry = {
                     inflateError = null
-                    playerViewModel.resolve()
+                    playerViewModel.resolve(forceRefresh = true)
                 }, onBack = onBack)
             }
             state is PlayerState.Loading -> {
@@ -103,7 +109,7 @@ fun PlayerScreen(
             state is PlayerState.Error -> {
                 ErrorPane(
                     message = (state as PlayerState.Error).message,
-                    onRetry = { playerViewModel.resolve() },
+                    onRetry = { playerViewModel.resolve(forceRefresh = true) },
                     onBack = onBack,
                 )
             }
@@ -111,23 +117,35 @@ fun PlayerScreen(
                 val ready = state as PlayerState.Ready
                 LaunchedEffect(ready.url) {
                     runCatching {
-                        player.setMediaItem(MediaItem.fromUri(ready.url))
+                        player.setMediaItem(MediaItem.fromUri(ready.url), ready.startMs)
                         player.prepare()
                         player.playWhenReady = true
                     }.onFailure { e ->
-                        playerViewModel.reportPlaybackError(
-                            e.message ?: "Player failed to start"
+                        playerViewModel.onPlaybackError(
+                            e.message ?: "Player failed to start",
+                            0L,
                         )
+                    }
+                }
+
+                // Save position every few seconds so "Continue watching" stays current.
+                LaunchedEffect(player, ready.url) {
+                    while (true) {
+                        delay(5_000)
+                        if (player.isPlaying) {
+                            playerViewModel.saveProgress(player.currentPosition, player.duration)
+                        }
                     }
                 }
 
                 DisposableEffect(player) {
                     val listener = object : Player.Listener {
                         override fun onPlayerError(error: PlaybackException) {
-                            playerViewModel.reportPlaybackError(
+                            playerViewModel.onPlaybackError(
                                 error.localizedMessage
                                     ?: error.cause?.message
-                                    ?: "Playback error (${error.errorCode})"
+                                    ?: "Playback error (${error.errorCode})",
+                                player.currentPosition,
                             )
                         }
                     }
@@ -161,6 +179,15 @@ fun PlayerScreen(
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
+                if (ready.sourceIndex > 0) {
+                    Text(
+                        text = "Source ${ready.sourceIndex + 1}/${ready.sourceCount}",
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(16.dp),
+                    )
+                }
             }
         }
     }

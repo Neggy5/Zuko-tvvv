@@ -63,13 +63,14 @@ class DetailViewModel(
             _download.value = DownloadUiState.Resolving
             try {
                 val year = movie.releaseDate?.take(4)
-                val url = streamRepository.resolveStream(
+                val urls = streamRepository.resolveStreams(
                     tmdbId = movie.id,
                     imdbId = movie.imdbId,
                     title = movie.title,
                     year = year,
                 )
-                if (url.contains(".m3u8", ignoreCase = true)) {
+                val url = urls.firstOrNull { !it.contains(".m3u8", ignoreCase = true) }
+                if (url == null) {
                     _download.value = DownloadUiState.Failed(
                         "This stream is HLS (m3u8) and can’t be saved as a single file. Use Play instead."
                     )

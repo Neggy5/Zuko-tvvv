@@ -51,7 +51,7 @@ private fun ZukoApp() {
     ) {
         composable("home") {
             val viewModel: HomeViewModel = viewModel(
-                factory = viewModelFactory { initializer { HomeViewModel(repository) } },
+                factory = viewModelFactory { initializer { HomeViewModel(repository, app.watchHistory) } },
             )
             HomeScreen(
                 viewModel = viewModel,
@@ -92,6 +92,7 @@ private fun ZukoApp() {
                 movieId = id,
                 movieRepository = repository,
                 streamRepository = streamRepository,
+                watchHistory = app.watchHistory,
                 onBack = { navController.popBackStack() },
             )
         }

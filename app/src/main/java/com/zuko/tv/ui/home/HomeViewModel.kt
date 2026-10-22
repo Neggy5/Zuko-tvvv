@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.zuko.tv.data.HomeRow
 import com.zuko.tv.data.MovieRepository
 import com.zuko.tv.data.MovieSummary
+import com.zuko.tv.data.WatchHistory
+import com.zuko.tv.data.WatchItem
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -26,7 +28,12 @@ class FocusMemory {
     var col: Int = 0
 }
 
-class HomeViewModel(private val repository: MovieRepository) : ViewModel() {
+class HomeViewModel(
+    private val repository: MovieRepository,
+    watchHistory: WatchHistory,
+) : ViewModel() {
+
+    val continueWatching: StateFlow<List<WatchItem>> = watchHistory.items
 
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
