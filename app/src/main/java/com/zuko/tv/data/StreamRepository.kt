@@ -17,6 +17,7 @@ class StreamRepository(
 ) {
     private val publicApi = StreamApi(client, streamApiBase)
     private val runflix = RunflixAddonApi(client, runflixAddonBase)
+    private val movieBox = MovieBoxApi(client)
 
     private class Cached(val urls: List<String>, val savedAt: Long)
     private val cache = ConcurrentHashMap<String, Cached>()
@@ -61,6 +62,18 @@ class StreamRepository(
             }
         } else {
             errors += "Runflix: not configured"
+        }
+
+        // MovieBox is an additional source; keep Runflix as the first choice.
+        if (urls.isEmpty()) {
+            try {
+                urls = movieBox.resolve(safeTitle, year)
+                if (urls.isEmpty()) errors += "MovieBox: no playable stream"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                errors += "MovieBox: ${e.message ?: e.javaClass.simpleName}"
+            }
         }
 
         if (urls.isEmpty() && publicApi.isConfigured) {
