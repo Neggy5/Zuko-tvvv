@@ -39,7 +39,11 @@ android {
         versionCode = 11
         versionName = "0.7.0-tv-shows"
 
-        buildConfigField("String", "TMDB_API_KEY", "\"${prop("TMDB_API_KEY")}\"")
+        buildConfigField(
+            "String",
+            "TMDB_PROXY_BASE",
+            "\"${prop("TMDB_PROXY_BASE", "https://athletic-consideration-production-c842.up.railway.app/api/tmdb/3/")}\""
+        )
         buildConfigField("String", "STREAM_API_BASE", "\"${prop("STREAM_API_BASE")}\"")
         buildConfigField(
             "String",

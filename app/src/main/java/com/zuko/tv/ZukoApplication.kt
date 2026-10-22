@@ -40,7 +40,7 @@ class ZukoApplication : Application() {
     }
 
     val repository: MovieRepository by lazy {
-        MovieRepository(TmdbApi(client, BuildConfig.TMDB_API_KEY))
+        MovieRepository(TmdbApi(client, BuildConfig.TMDB_PROXY_BASE))
     }
 
     val streamRepository: StreamRepository by lazy {

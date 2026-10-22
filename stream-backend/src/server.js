@@ -85,5 +85,114 @@ app.get('/api/v1/public/stream', async (req, res) => {
   }
 });
 
+
+// TMDB proxy: keeps the TMDB credential on the backend.
+const tmdbCache = new Map();
+const TMDB_BASE = 'https://api.themoviedb.org/3/';
+const TMDB_CACHE_TTL = 5 * 60 * 1000;
+const TMDB_CACHE_MAX = 300;
+
+const TMDB_ALLOWED_PATHS = [
+  /^trending\/(movie|tv)\/(day|week)$/,
+  /^movie\/\d+$/,
+  /^movie\/(popular|top_rated|now_playing|upcoming)$/,
+  /^tv\/\d+$/,
+  /^tv\/(popular|top_rated|on_the_air|airing_today)$/,
+  /^tv\/\d+\/season\/\d+$/,
+  /^search\/(movie|tv)$/,
+  /^discover\/movie$/,
+  /^genre\/(movie|tv)\/list$/,
+  /^movie\/\d+\/(credits|similar|recommendations)$/,
+  /^tv\/\d+\/(credits|similar|recommendations)$/,
+  /^configuration$/
+];
+
+const TMDB_ALLOWED_QUERY = new Set([
+  'language', 'page', 'query', 'include_adult', 'with_genres',
+  'sort_by', 'append_to_response', 'year', 'first_air_date_year',
+  'primary_release_year', 'region', 'with_original_language',
+  'include_video', 'with_watch_providers', 'watch_region'
+]);
+
+app.get('/api/tmdb/3/*', async (req, res) => {
+  const apiKey = process.env.TMDB_API_KEY;
+  if (!apiKey) {
+    return res.status(503).json({
+      error: 'TMDB proxy is not configured. Set TMDB_API_KEY on this Railway service.'
+    });
+  }
+
+  const path = String(req.params[0] || '').replace(/^\/+|\/+$/g, '');
+  if (!path || path.includes('..') || !TMDB_ALLOWED_PATHS.some(rule => rule.test(path))) {
+    return res.status(400).json({ error: 'TMDB endpoint is not allowed.' });
+  }
+
+  const params = new URLSearchParams();
+  for (const [key, raw] of Object.entries(req.query)) {
+    if (!TMDB_ALLOWED_QUERY.has(key)) continue;
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (typeof value === 'string' && value.length <= 300) {
+      params.set(key, value);
+    }
+  }
+  params.set('api_key', apiKey);
+
+  const cacheKey = `${path}?${[...params.entries()]
+    .filter(([key]) => key !== 'api_key')
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join('&')}`;
+
+  const cached = tmdbCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    res.set('X-TMDB-Cache', 'HIT');
+    return res.status(cached.status).json(cached.body);
+  }
+
+  try {
+    const upstream = await fetch(`${TMDB_BASE}${path}?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000)
+    });
+
+    const bodyText = await upstream.text();
+    let body;
+    try {
+      body = JSON.parse(bodyText);
+    } catch {
+      return res.status(502).json({ error: 'TMDB returned an invalid response.' });
+    }
+
+    if (!upstream.ok) {
+      const status = upstream.status === 401 ? 502 :
+                     upstream.status === 429 ? 429 :
+                     upstream.status >= 500 ? 502 : upstream.status;
+      return res.status(status).json({
+        error: upstream.status === 401
+          ? 'TMDB rejected the backend API key. Check TMDB_API_KEY on Railway.'
+          : upstream.status === 429
+            ? 'TMDB is rate limiting requests. Please try again shortly.'
+            : 'TMDB request failed.'
+      });
+    }
+
+    if (tmdbCache.size >= TMDB_CACHE_MAX) {
+      const firstKey = tmdbCache.keys().next().value;
+      if (firstKey) tmdbCache.delete(firstKey);
+    }
+    tmdbCache.set(cacheKey, {
+      status: upstream.status,
+      body,
+      expiresAt: Date.now() + TMDB_CACHE_TTL
+    });
+
+    res.set('X-TMDB-Cache', 'MISS');
+    return res.status(200).json(body);
+  } catch (error) {
+    console.error('TMDB proxy request failed:', error?.message || error);
+    return res.status(502).json({ error: 'TMDB is temporarily unavailable.' });
+  }
+});
+
 app.use((_req, res) => res.status(404).json({ error: 'Endpoint not found. See the backend README for supported routes.' }));
 app.listen(PORT, '0.0.0.0', () => console.log(`ZUKO public stream backend listening on ${PORT}`));
