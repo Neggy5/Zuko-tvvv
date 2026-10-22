@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
@@ -16,18 +17,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.core.net.toUri
 import com.zuko.tv.ui.detail.DetailScreen
 import com.zuko.tv.ui.detail.DetailViewModel
 import com.zuko.tv.ui.home.HomeScreen
 import com.zuko.tv.ui.home.HomeViewModel
 import com.zuko.tv.ui.player.PlayerScreen
 import com.zuko.tv.ui.theme.ZukoTheme
+import java.net.URLDecoder
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         setContent {
             ZukoTheme {
                 ZukoApp()
@@ -54,7 +56,10 @@ private fun ZukoApp() {
             val viewModel: HomeViewModel = viewModel(
                 factory = viewModelFactory { initializer { HomeViewModel(repository) } },
             )
-            HomeScreen(viewModel = viewModel, onOpenMovie = { id: Int -> navController.navigate("detail/$id") })
+            HomeScreen(
+                viewModel = viewModel,
+                onOpenMovie = { id: Int -> navController.navigate("detail/$id") },
+            )
         }
         composable(
             route = "detail/{movieId}",
@@ -69,24 +74,52 @@ private fun ZukoApp() {
                 viewModel = viewModel,
                 onOpenMovie = { next: Int -> navController.navigate("detail/$next") },
                 onPlayMovie = { movie ->
-                    val imdb = movie.imdbId.orEmpty().let { java.net.URLEncoder.encode(it, Charsets.UTF_8.name()) }
-                    val title = java.net.URLEncoder.encode(movie.title, Charsets.UTF_8.name())
-                    navController.navigate("player/${movie.id}?imdb=$imdb&title=$title")
+                    val titleEnc = URLEncoder.encode(
+                        movie.title.ifBlank { "Movie" },
+                        StandardCharsets.UTF_8.name(),
+                    ).replace("+", "%20")
+                    val imdbEnc = URLEncoder.encode(
+                        movie.imdbId.orEmpty(),
+                        StandardCharsets.UTF_8.name(),
+                    ).replace("+", "%20")
+                    // Path-based args avoid Navigation query-string parsing crashes
+                    navController.navigate("player/${movie.id}/$titleEnc?imdb=$imdbEnc")
                 },
             )
         }
         composable(
-            route = "player/{movieId}?imdb={imdb}&title={title}",
+            route = "player/{movieId}/{title}?imdb={imdb}",
             arguments = listOf(
                 navArgument("movieId") { type = NavType.IntType },
-                navArgument("imdb") { type = NavType.StringType; nullable = false; defaultValue = "" },
-                navArgument("title") { type = NavType.StringType; nullable = false; defaultValue = "" },
+                navArgument("title") { type = NavType.StringType },
+                navArgument("imdb") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                    nullable = true
+                },
             ),
         ) { entry ->
             val id = entry.arguments?.getInt("movieId") ?: return@composable
-            val imdb = entry.arguments?.getString("imdb")?.takeIf { it.isNotBlank() }
-            val title = entry.arguments?.getString("title").orEmpty()
-            PlayerScreen(movieId = id, title = title, imdbId = imdb, onBack = { navController.popBackStack() })
+            val titleArg = entry.arguments?.getString("title").orEmpty()
+            val title = try {
+                URLDecoder.decode(titleArg, StandardCharsets.UTF_8.name())
+            } catch (_: Exception) {
+                titleArg
+            }
+            val imdbRaw = entry.arguments?.getString("imdb")
+            val imdb = imdbRaw?.takeIf { it.isNotBlank() }?.let {
+                try {
+                    URLDecoder.decode(it, StandardCharsets.UTF_8.name())
+                } catch (_: Exception) {
+                    it
+                }
+            }
+            PlayerScreen(
+                movieId = id,
+                title = title,
+                imdbId = imdb,
+                onBack = { navController.popBackStack() },
+            )
         }
     }
 }

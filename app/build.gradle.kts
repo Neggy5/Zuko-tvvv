@@ -25,8 +25,8 @@ android {
         applicationId = "com.zuko.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0-runflix"
+        versionCode = 4
+        versionName = "0.3.1-play-fix"
 
         buildConfigField("String", "TMDB_API_KEY", "\"${prop("TMDB_API_KEY")}\"")
         buildConfigField("String", "STREAM_API_BASE", "\"${prop("STREAM_API_BASE")}\"")
@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.datasource)
     implementation(libs.coil.compose)

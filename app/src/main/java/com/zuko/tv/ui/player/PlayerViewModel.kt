@@ -21,14 +21,10 @@ class PlayerViewModel(
     private val repository: StreamRepository,
     private val tmdbId: Int,
     private val imdbId: String?,
-    titleEncoded: String,
+    titleRaw: String,
 ) : ViewModel() {
 
-    private val title: String = try {
-        URLDecoder.decode(titleEncoded, StandardCharsets.UTF_8.name())
-    } catch (_: Exception) {
-        titleEncoded
-    }
+    private val title: String = decode(titleRaw)
 
     private val _state = MutableStateFlow<PlayerState>(PlayerState.Loading)
     val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -36,12 +32,31 @@ class PlayerViewModel(
     init {
         viewModelScope.launch {
             _state.value = try {
-                PlayerState.Ready(repository.resolveStream(tmdbId, imdbId, title, year = null))
+                val url = repository.resolveStream(tmdbId, imdbId, title, year = null)
+                if (url.isBlank()) {
+                    PlayerState.Error("Empty stream URL for \"$title\".")
+                } else {
+                    PlayerState.Ready(url)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 PlayerState.Error(e.message ?: "Couldn't find a playable stream for this title.")
             }
+        }
+    }
+
+    /** Called from PlayerScreen when ExoPlayer fails — must not crash the Activity. */
+    fun reportPlaybackError(message: String) {
+        _state.value = PlayerState.Error(message)
+    }
+
+    private fun decode(value: String): String {
+        if (value.isBlank()) return value
+        return try {
+            URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+        } catch (_: Exception) {
+            value
         }
     }
 }
