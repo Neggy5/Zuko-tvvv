@@ -5,6 +5,8 @@ import com.zuko.tv.data.MovieRepository
 import com.zuko.tv.data.StreamRepository
 import com.zuko.tv.data.TmdbApi
 import com.zuko.tv.data.WatchHistory
+import com.zuko.tv.ui.theme.ThemeStore
+import com.zuko.tv.ui.theme.ZukoPalette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,8 +29,12 @@ class ZukoApplication : Application() {
 
     val watchHistory: WatchHistory by lazy { WatchHistory(this) }
 
+    val themeStore: ThemeStore by lazy { ThemeStore(this) }
+
     override fun onCreate() {
         super.onCreate()
+        // Start with the saved mode already applied so there is no wrong-colour flash.
+        ZukoPalette.darkness = if (themeStore.dark.value) 1f else 0f
         // Wake the Railway addon early so Play doesn't hit a cold start.
         appScope.launch { streamRepository.warmUp() }
     }

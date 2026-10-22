@@ -1,6 +1,21 @@
 package com.zuko.tv
 
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import com.zuko.tv.ui.splash.SplashIntro
+import com.zuko.tv.ui.theme.Ink
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.tween
@@ -26,16 +41,39 @@ import com.zuko.tv.ui.theme.ZukoTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val app = application as ZukoApplication
         setContent {
-            ZukoTheme {
-                ZukoApp()
+            val dark by app.themeStore.dark.collectAsState()
+            ZukoTheme(darkTheme = dark) {
+                var showSplash by rememberSaveable { mutableStateOf(true) }
+                BackHandler(enabled = showSplash) { showSplash = false }
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Ink)
+                        // While the intro plays, any key press skips it (and is not passed on).
+                        .onPreviewKeyEvent { event ->
+                            if (showSplash) {
+                                if (event.type == KeyEventType.KeyDown) showSplash = false
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                ) {
+                    // The app is composed underneath so movies load while the intro plays.
+                    ZukoApp(dark = dark, onToggleTheme = { app.themeStore.toggle() })
+                    if (showSplash) {
+                        SplashIntro(onFinished = { showSplash = false })
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ZukoApp() {
+private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit) {
     val navController = rememberNavController()
     val app = LocalContext.current.applicationContext as ZukoApplication
     val repository = app.repository
@@ -55,6 +93,8 @@ private fun ZukoApp() {
             )
             HomeScreen(
                 viewModel = viewModel,
+                darkTheme = dark,
+                onToggleTheme = onToggleTheme,
                 onOpenMovie = { id: Int ->
                     runCatching { navController.navigate("detail/$id") }
                 },

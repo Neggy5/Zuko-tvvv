@@ -37,7 +37,10 @@ import com.zuko.tv.ui.components.CenterMessage
 import com.zuko.tv.ui.components.PosterCard
 import com.zuko.tv.ui.components.RatingChip
 import com.zuko.tv.ui.components.ZukoButton
+import com.zuko.tv.ui.theme.BodySoft
+import com.zuko.tv.ui.theme.Err
 import com.zuko.tv.ui.theme.Ink
+import com.zuko.tv.ui.theme.Ok
 import com.zuko.tv.ui.theme.TextLo
 import com.zuko.tv.ui.theme.ZukoType
 
@@ -165,12 +168,12 @@ private fun DetailContent(
                 when (download) {
                     is DownloadUiState.Started -> Text(
                         text = download.message,
-                        style = ZukoType.small.copy(color = Color(0xFF7DFFB3)),
+                        style = ZukoType.small.copy(color = Ok),
                         modifier = Modifier.padding(top = 8.dp),
                     )
                     is DownloadUiState.Failed -> Text(
                         text = download.message,
-                        style = ZukoType.small.copy(color = Color(0xFFFF8A80)),
+                        style = ZukoType.small.copy(color = Err),
                         modifier = Modifier.padding(top = 8.dp),
                     )
                     DownloadUiState.Resolving -> Text(
@@ -182,7 +185,7 @@ private fun DetailContent(
                 }
                 Text(
                     text = movie.overview,
-                    style = ZukoType.body.copy(color = Color(0xFFD3DBF0)),
+                    style = ZukoType.body.copy(color = BodySoft),
                     maxLines = 5,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 10.dp),

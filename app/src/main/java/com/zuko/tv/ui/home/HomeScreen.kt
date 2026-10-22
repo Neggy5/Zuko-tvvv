@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -62,6 +64,7 @@ import com.zuko.tv.ui.components.PosterCard
 import com.zuko.tv.ui.components.RatingChip
 import com.zuko.tv.ui.theme.Azure
 import com.zuko.tv.ui.theme.Ink
+import com.zuko.tv.ui.theme.Outline
 import com.zuko.tv.ui.theme.Panel
 import com.zuko.tv.ui.theme.TextHi
 import com.zuko.tv.ui.theme.TextLo
@@ -72,6 +75,8 @@ import com.zuko.tv.ui.theme.ZukoType
 fun HomeScreen(
     viewModel: HomeViewModel,
     onOpenMovie: (Int) -> Unit,
+    darkTheme: Boolean,
+    onToggleTheme: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val query by viewModel.query.collectAsState()
@@ -98,14 +103,21 @@ fun HomeScreen(
             val allRows = remember(s.rows, continueItems) { buildRows(s.rows, continueItems) }
             val progress = remember(continueItems) { continueItems.associate { it.id to it.progress } }
             Column(modifier = Modifier.fillMaxSize().background(Ink)) {
-                SearchBar(
-                    query = query,
-                    onQuery = viewModel::setQuery,
-                    onClear = viewModel::clearQuery,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 48.dp, vertical = 12.dp),
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    SearchBar(
+                        query = query,
+                        onQuery = viewModel::setQuery,
+                        onClear = viewModel::clearQuery,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
+                }
                 if (isSearching) {
                     SearchResultsPane(
                         query = query,
@@ -120,6 +132,35 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+/** Dark / Light switch. Shows the current mode; press OK to flip it. */
+@Composable
+private fun ThemeToggle(dark: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = modifier
+            .height(48.dp)
+            .onFocusChanged { focused = it.isFocused }
+            .clip(shape)
+            .background(Panel)
+            .then(
+                if (focused) Modifier.border(2.dp, ZukoBrush, shape)
+                else Modifier.border(1.dp, Outline, shape)
+            )
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = if (dark) "\u263E" else "\u2600",
+            style = ZukoType.meta,
+            color = if (focused) Azure else TextLo,
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(text = if (dark) "Dark" else "Light", style = ZukoType.meta)
     }
 }
 
@@ -140,7 +181,7 @@ private fun SearchBar(
             .background(Panel, shape)
             .then(
                 if (focused) Modifier.border(2.dp, ZukoBrush, shape)
-                else Modifier.border(1.dp, Color(0x33FFFFFF), shape)
+                else Modifier.border(1.dp, Outline, shape)
             )
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
