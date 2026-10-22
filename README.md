@@ -32,3 +32,8 @@ Addon endpoints used:
 
 - `/catalog/movie/runflix-search/search=<title>.json`
 - `/stream/movie/runflix:<id>.json`
+
+
+## Cinematic transitions
+
+The app keeps its vector-based animated ZUKO TV opening intro and now uses subtle fade, scale, and directional slide transitions when moving between Home, Details, and Player screens.

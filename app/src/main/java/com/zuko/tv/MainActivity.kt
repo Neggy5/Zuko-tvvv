@@ -21,6 +21,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -82,10 +86,40 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit) {
     NavHost(
         navController = navController,
         startDestination = "home",
-        enterTransition = { fadeIn(tween(200)) },
-        exitTransition = { fadeOut(tween(200)) },
-        popEnterTransition = { fadeIn(tween(200)) },
-        popExitTransition = { fadeOut(tween(200)) },
+        // Cinematic blue/violet-feeling motion: a soft zoom and short directional glide.
+        // Keep the movement subtle so it feels premium without slowing down navigation.
+        enterTransition = {
+            fadeIn(tween(340)) +
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> fullWidth / 12 },
+                    animationSpec = tween(340),
+                ) +
+                scaleIn(initialScale = 0.965f, animationSpec = tween(340))
+        },
+        exitTransition = {
+            fadeOut(tween(220)) +
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> -fullWidth / 24 },
+                    animationSpec = tween(220),
+                ) +
+                scaleOut(targetScale = 0.985f, animationSpec = tween(220))
+        },
+        popEnterTransition = {
+            fadeIn(tween(340)) +
+                slideInHorizontally(
+                    initialOffsetX = { fullWidth -> -fullWidth / 12 },
+                    animationSpec = tween(340),
+                ) +
+                scaleIn(initialScale = 0.965f, animationSpec = tween(340))
+        },
+        popExitTransition = {
+            fadeOut(tween(220)) +
+                slideOutHorizontally(
+                    targetOffsetX = { fullWidth -> fullWidth / 24 },
+                    animationSpec = tween(220),
+                ) +
+                scaleOut(targetScale = 0.985f, animationSpec = tween(220))
+        },
     ) {
         composable("home") {
             val viewModel: HomeViewModel = viewModel(
