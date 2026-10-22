@@ -71,6 +71,16 @@ class TmdbApi(
     suspend fun nowPlaying() = get("movie/now_playing", MovieList.serializer())
     suspend fun upcoming() = get("movie/upcoming", MovieList.serializer())
 
+    suspend fun search(query: String, page: Int = 1) = get(
+        path = "search/movie",
+        serializer = MovieList.serializer(),
+        query = mapOf(
+            "query" to query,
+            "page" to page.toString(),
+            "include_adult" to "false",
+        ),
+    )
+
     suspend fun details(id: Int) = get(
         path = "movie/$id",
         serializer = MovieDetails.serializer(),

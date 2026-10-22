@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,12 +21,18 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -33,10 +40,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -48,7 +59,12 @@ import com.zuko.tv.data.toYear
 import com.zuko.tv.ui.components.CenterMessage
 import com.zuko.tv.ui.components.PosterCard
 import com.zuko.tv.ui.components.RatingChip
+import com.zuko.tv.ui.theme.Azure
 import com.zuko.tv.ui.theme.Ink
+import com.zuko.tv.ui.theme.Panel
+import com.zuko.tv.ui.theme.TextHi
+import com.zuko.tv.ui.theme.TextLo
+import com.zuko.tv.ui.theme.ZukoBrush
 import com.zuko.tv.ui.theme.ZukoType
 
 @Composable
@@ -57,6 +73,10 @@ fun HomeScreen(
     onOpenMovie: (Int) -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
+    val query by viewModel.query.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    val searching by viewModel.searching.collectAsState()
+    val searchError by viewModel.searchError.collectAsState()
 
     when (val s = state) {
         HomeUiState.Loading -> CenterMessage(title = "Loading movies")
@@ -71,7 +91,124 @@ fun HomeScreen(
             actionLabel = "Try again",
             onAction = viewModel::load,
         )
-        is HomeUiState.Ready -> HomeContent(s.rows, viewModel.focusMemory, onOpenMovie)
+        is HomeUiState.Ready -> {
+            val isSearching = query.isNotBlank()
+            Column(modifier = Modifier.fillMaxSize().background(Ink)) {
+                SearchBar(
+                    query = query,
+                    onQuery = viewModel::setQuery,
+                    onClear = viewModel::clearQuery,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 48.dp, vertical = 12.dp),
+                )
+                if (isSearching) {
+                    SearchResultsPane(
+                        query = query,
+                        results = searchResults,
+                        searching = searching,
+                        error = searchError,
+                        onOpenMovie = onOpenMovie,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    HomeContent(s.rows, viewModel.focusMemory, onOpenMovie)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchBar(
+    query: String,
+    onQuery: (String) -> Unit,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val focusManager = LocalFocusManager.current
+    var focused by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(14.dp)
+
+    Row(
+        modifier = modifier
+            .height(48.dp)
+            .background(Panel, shape)
+            .then(
+                if (focused) Modifier.border(2.dp, ZukoBrush, shape)
+                else Modifier.border(1.dp, Color(0x33FFFFFF), shape)
+            )
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = "⌕", style = ZukoType.meta, color = if (focused) Azure else TextLo)
+        Spacer(Modifier.width(12.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = onQuery,
+            singleLine = true,
+            textStyle = ZukoType.meta.copy(color = TextHi),
+            cursorBrush = SolidColor(Azure),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { focused = it.isFocused },
+            decorationBox = { inner ->
+                Box {
+                    if (query.isEmpty()) {
+                        Text("Search movies…", style = ZukoType.meta.copy(color = TextLo))
+                    }
+                    inner()
+                }
+            },
+        )
+        if (query.isNotEmpty()) {
+            TextButton(onClick = onClear) {
+                Text("Clear", style = ZukoType.small.copy(color = Azure))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResultsPane(
+    query: String,
+    results: List<MovieSummary>,
+    searching: Boolean,
+    error: String?,
+    onOpenMovie: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when {
+        searching && results.isEmpty() -> {
+            Box(modifier, contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = Azure)
+            }
+        }
+        error != null && results.isEmpty() -> {
+            CenterMessage(title = "No results", body = error)
+        }
+        results.isEmpty() -> {
+            CenterMessage(title = "Search", body = "Type a movie name to search TMDB.")
+        }
+        else -> {
+            Column(modifier = modifier) {
+                Text(
+                    text = "Results for \"$query\" (${results.size})",
+                    style = ZukoType.rowTitle,
+                    modifier = Modifier.padding(start = 48.dp, top = 8.dp, bottom = 4.dp),
+                )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 48.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    itemsIndexed(results, key = { _, m -> m.id }) { _, movie ->
+                        PosterCard(movie = movie, onClick = { onOpenMovie(movie.id) })
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -81,10 +218,19 @@ private fun HomeContent(
     memory: FocusMemory,
     onOpenMovie: (Int) -> Unit,
 ) {
+    if (rows.isEmpty()) {
+        CenterMessage(title = "No movies")
+        return
+    }
     val startRow = memory.row.coerceIn(0, rows.lastIndex)
-    val startCol = memory.col.coerceIn(0, rows[startRow].movies.lastIndex)
+    val startCol = memory.col.coerceIn(0, (rows[startRow].movies.lastIndex).coerceAtLeast(0))
 
-    var featured by remember { mutableStateOf(rows[startRow].movies[startCol]) }
+    var featured by remember(rows) {
+        mutableStateOf(
+            rows.getOrNull(startRow)?.movies?.getOrNull(startCol)
+                ?: rows.first().movies.first()
+        )
+    }
     val restoreFocus = remember { FocusRequester() }
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = startRow)
 
@@ -93,8 +239,8 @@ private fun HomeContent(
         runCatching { restoreFocus.requestFocus() }
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Ink)) {
-        Hero(movie = featured, modifier = Modifier.fillMaxWidth().height(270.dp))
+    Column(modifier = Modifier.fillMaxSize()) {
+        Hero(movie = featured, modifier = Modifier.fillMaxWidth().height(240.dp))
 
         LazyColumn(
             state = listState,
@@ -143,7 +289,9 @@ private fun MovieRow(
             style = ZukoType.rowTitle,
             modifier = Modifier.padding(start = 48.dp, top = 14.dp, bottom = 2.dp),
         )
-        val rowState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
+        val rowState = rememberLazyListState(
+            initialFirstVisibleItemIndex = initialIndex.coerceIn(0, (movies.size - 1).coerceAtLeast(0))
+        )
         LazyRow(
             state = rowState,
             contentPadding = PaddingValues(horizontal = 48.dp, vertical = 14.dp),
@@ -161,77 +309,55 @@ private fun MovieRow(
     }
 }
 
-/** Backdrop banner that follows whichever poster has focus. */
 @Composable
 private fun Hero(movie: MovieSummary, modifier: Modifier = Modifier) {
-    Box(modifier = modifier.background(Ink)) {
-        Crossfade(
-            targetState = movie.backdropPath ?: movie.posterPath,
-            animationSpec = tween(350),
-            label = "heroBackdrop",
-        ) { path ->
-            if (path != null) {
-                AsyncImage(
-                    model = Tmdb.backdrop(path),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+    Box(modifier = modifier) {
+        val path = movie.backdropPath ?: movie.posterPath
+        if (path != null) {
+            AsyncImage(
+                model = Tmdb.backdrop(path),
+                contentDescription = movie.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
         Box(
-            modifier = Modifier
+            Modifier
                 .fillMaxSize()
-                .background(Brush.horizontalGradient(listOf(Ink, Ink.copy(alpha = 0.82f), Color.Transparent))),
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color.Transparent, Ink.copy(alpha = 0.55f), Ink)
+                    )
+                )
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Ink))),
-        )
-
         Row(
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 48.dp, top = 22.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Image(
-                painter = painterResource(R.drawable.zuko_mark),
-                contentDescription = null,
-                modifier = Modifier.size(30.dp),
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(text = "ZUKO TV", style = ZukoType.brand)
-        }
-
-        Column(
-            modifier = Modifier
                 .align(Alignment.BottomStart)
-                .fillMaxWidth(0.55f)
-                .padding(start = 48.dp, bottom = 16.dp),
+                .padding(start = 48.dp, end = 48.dp, bottom = 16.dp),
+            verticalAlignment = Alignment.Bottom,
         ) {
-            Text(
-                text = movie.title,
-                style = ZukoType.heroTitle,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(
-                modifier = Modifier.padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                movie.releaseDate.toYear()?.let { Text(text = it, style = ZukoType.meta) }
-                RatingChip(rating = movie.voteAverage)
+            Column(modifier = Modifier.weight(1f)) {
+                Image(
+                    painter = painterResource(R.drawable.zuko_mark),
+                    contentDescription = null,
+                    modifier = Modifier.size(28.dp),
+                )
+                Text(
+                    text = movie.title,
+                    style = ZukoType.heroTitle,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
+                    movie.releaseDate.toYear()?.let { Text(text = it, style = ZukoType.meta) }
+                    RatingChip(rating = movie.voteAverage)
+                }
             }
-            Text(
-                text = movie.overview,
-                style = ZukoType.body,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(top = 8.dp),
-            )
         }
     }
 }

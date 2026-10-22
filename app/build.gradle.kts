@@ -25,8 +25,8 @@ android {
         applicationId = "com.zuko.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.3.1-play-fix"
+        versionCode = 6
+        versionName = "0.4.0-search-download"
 
         buildConfigField("String", "TMDB_API_KEY", "\"${prop("TMDB_API_KEY")}\"")
         buildConfigField("String", "STREAM_API_BASE", "\"${prop("STREAM_API_BASE")}\"")
@@ -71,6 +71,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.media3.exoplayer)

@@ -1,19 +1,17 @@
 package com.zuko.tv.data
 
 import kotlinx.coroutines.async
-import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.coroutineScope
 
 class MovieRepository(private val api: TmdbApi) {
-
     val isConfigured: Boolean get() = api.isConfigured
 
-    /** Loads all home rows in parallel. A failing row is skipped; all failing is an error. */
-    suspend fun homeRows(): List<HomeRow> = supervisorScope {
+    suspend fun homeRows(): List<HomeRow> = coroutineScope {
         val jobs = listOf(
             "Trending this week" to async { api.trending() },
             "Popular" to async { api.popular() },
             "Top rated" to async { api.topRated() },
-            "In theaters" to async { api.nowPlaying() },
+            "Now playing" to async { api.nowPlaying() },
             "Coming soon" to async { api.upcoming() },
         )
         val results = jobs.map { (title, job) -> title to runCatching { job.await() } }
@@ -27,6 +25,12 @@ class MovieRepository(private val api: TmdbApi) {
                 ?: TmdbException("TMDB returned no movies.")
         }
         rows
+    }
+
+    suspend fun search(query: String): List<MovieSummary> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptyList()
+        return api.search(q).results.filter { it.posterPath != null }
     }
 
     suspend fun details(id: Int): MovieDetails = api.details(id)

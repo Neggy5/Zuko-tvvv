@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.ZukoTV" parent="android:Theme.Material.NoActionBar">
+    <!-- Media3 PlayerView requires AppCompat theme attributes — Material.NoActionBar crashes on inflate -->
+    <style name="Theme.ZukoTV" parent="Theme.AppCompat.NoActionBar">
         <item name="android:windowBackground">@color/night</item>
         <item name="android:statusBarColor">@color/night</item>
         <item name="android:navigationBarColor">@color/night</item>
+        <item name="android:windowFullscreen">false</item>
+        <item name="colorPrimary">#FF2B8CFF</item>
+        <item name="colorPrimaryDark">#FF050813</item>
+        <item name="colorAccent">#FF6B46FF</item>
     </style>
 </resources>

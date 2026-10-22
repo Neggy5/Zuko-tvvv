@@ -38,6 +38,7 @@ import com.zuko.tv.ui.components.PosterCard
 import com.zuko.tv.ui.components.RatingChip
 import com.zuko.tv.ui.components.ZukoButton
 import com.zuko.tv.ui.theme.Ink
+import com.zuko.tv.ui.theme.TextLo
 import com.zuko.tv.ui.theme.ZukoType
 
 @Composable
@@ -47,6 +48,7 @@ fun DetailScreen(
     onPlayMovie: (MovieDetails) -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
+    val download by viewModel.download.collectAsState()
 
     when (val s = state) {
         DetailUiState.Loading -> CenterMessage(title = "Loading")
@@ -56,15 +58,23 @@ fun DetailScreen(
             actionLabel = "Try again",
             onAction = viewModel::load,
         )
-        is DetailUiState.Ready -> DetailContent(s.movie, onOpenMovie, onPlayMovie)
+        is DetailUiState.Ready -> DetailContent(
+            movie = s.movie,
+            download = download,
+            onOpenMovie = onOpenMovie,
+            onPlayMovie = onPlayMovie,
+            onDownload = viewModel::downloadMovie,
+        )
     }
 }
 
 @Composable
 private fun DetailContent(
     movie: MovieDetails,
+    download: DownloadUiState,
     onOpenMovie: (Int) -> Unit,
     onPlayMovie: (MovieDetails) -> Unit,
+    onDownload: () -> Unit,
 ) {
     val similar = remember(movie.id) { movie.similar.results.filter { it.posterPath != null }.take(20) }
     val firstSimilarFocus = remember { FocusRequester() }
@@ -105,7 +115,7 @@ private fun DetailContent(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.58f)
+                    .fillMaxWidth(0.62f)
                     .padding(start = 48.dp),
             ) {
                 Text(
@@ -118,9 +128,9 @@ private fun DetailContent(
                     Text(text = it, style = ZukoType.body, modifier = Modifier.padding(top = 4.dp))
                 }
                 Row(
-                    modifier = Modifier.padding(top = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(top = 8.dp),
                 ) {
                     movie.releaseDate.toYear()?.let { Text(text = it, style = ZukoType.meta) }
                     movie.runtime.toRuntimeLabel()?.let { Text(text = it, style = ZukoType.meta) }
@@ -133,11 +143,43 @@ private fun DetailContent(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                ZukoButton(
-                    text = "PLAY MOVIE",
-                    onClick = { onPlayMovie(movie) },
-                    modifier = Modifier.padding(top = 12.dp),
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(top = 14.dp),
+                ) {
+                    ZukoButton(
+                        text = "PLAY",
+                        onClick = { onPlayMovie(movie) },
+                    )
+                    ZukoButton(
+                        text = when (download) {
+                            DownloadUiState.Resolving -> "GETTING LINK…"
+                            is DownloadUiState.Started -> "DOWNLOADING"
+                            else -> "DOWNLOAD"
+                        },
+                        onClick = {
+                            if (download !is DownloadUiState.Resolving) onDownload()
+                        },
+                    )
+                }
+                when (download) {
+                    is DownloadUiState.Started -> Text(
+                        text = download.message,
+                        style = ZukoType.small.copy(color = Color(0xFF7DFFB3)),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    is DownloadUiState.Failed -> Text(
+                        text = download.message,
+                        style = ZukoType.small.copy(color = Color(0xFFFF8A80)),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    DownloadUiState.Resolving -> Text(
+                        text = "Resolving stream for download…",
+                        style = ZukoType.small.copy(color = TextLo),
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    else -> Unit
+                }
                 Text(
                     text = movie.overview,
                     style = ZukoType.body.copy(color = Color(0xFFD3DBF0)),
