@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /** Remembers the chosen mode (dark by default). */
 class ThemeStore(context: Context) {
-    private val prefs = context.applicationContext
-        .getSharedPreferences("zuko_theme", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("zuko_theme", Context.MODE_PRIVATE)
 
     private val _mode = MutableStateFlow(prefs.getString(KEY_MODE, "Dark") ?: "Dark")
     val mode: StateFlow<String> = _mode.asStateFlow()
@@ -18,7 +18,7 @@ class ThemeStore(context: Context) {
     fun setMode(value: String) {
         _mode.value = value
         val darkNow = when (value) {
-            "System" -> (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+            "System" -> (appContext.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
             "Light" -> false
             else -> true
         }
