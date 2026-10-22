@@ -1,0 +1,178 @@
+name: Build ZUKO TV APK
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ZUKO TV APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      HAS_KEYSTORE: ${{ secrets.ZUKO_KEYSTORE_BASE64 != '' }}
+      TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+      STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ""
+
+      - name: Accept Android SDK licenses
+        shell: bash
+        run: yes | sdkmanager --licenses || true
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Compute version
+        shell: bash
+        run: |
+          echo "ZUKO_VERSION_CODE=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "ZUKO_VERSION_NAME=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "ZUKO_VERSION_NAME=0.1.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build debug APK
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
+        run: |
+          ./gradlew :app:assembleDebug \
+            --no-daemon \
+            --stacktrace
+
+      - name: Restore release keystore
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ZUKO_KEYSTORE_BASE64 }}
+        shell: bash
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/zuko-release.jks"
+          echo "ZUKO_KEYSTORE_FILE=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
+          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
+          ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
+          ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
+        run: |
+          ./gradlew :app:assembleRelease \
+            --no-daemon \
+            --stacktrace
+
+      - name: Collect APKs
+        shell: bash
+        run: |
+          mkdir -p dist
+
+          cp app/build/outputs/apk/debug/app-debug.apk \
+            "dist/ZUKO-TV-${ZUKO_VERSION_NAME}-debug.apk"
+
+          if [[ "$HAS_KEYSTORE" == "true" ]]; then
+            cp app/build/outputs/apk/release/app-release.apk \
+              "dist/ZUKO-TV-${ZUKO_VERSION_NAME}.apk"
+          fi
+
+          ls -lh dist
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: zuko-tv-apks
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach APKs to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.apk
+          generate_release_notes: true
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zuko-tv-build-reports
+          path: |
+            app/build/reports/
+            app/build/outputs/logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Notify Telegram
+        if: always() && env.TG_TOKEN != '' && env.TG_CHAT != ''
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            ICON="✅"
+          else
+            ICON="❌"
+          fi
+
+          TEXT="${ICON} ZUKO TV build #${GITHUB_RUN_NUMBER} (${ZUKO_VERSION_NAME}): ${JOB_STATUS}
+          ${RUN_URL}"
+
+          curl -fsS -X POST \
+            "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TG_CHAT}" \
+            --data-urlencode "text=${TEXT}" \
+            > /dev/null
+
+          if [[ "$JOB_STATUS" == "success" ]]; then
+            APK=$(find dist -maxdepth 1 -name 'ZUKO-TV-*.apk' ! -name '*-debug.apk' -print -quit)
+
+            if [[ -z "$APK" ]]; then
+              APK=$(find dist -maxdepth 1 -name 'ZUKO-TV-*-debug.apk' -print -quit)
+            fi
+
+            if [[ -n "$APK" ]]; then
+              curl -fsS -X POST \
+                "https://api.telegram.org/bot${TG_TOKEN}/sendDocument" \
+                -F "chat_id=${TG_CHAT}" \
+                -F "document=@${APK}" \
+                > /dev/null
+            fi
+          fi
