@@ -65,7 +65,6 @@ jobs:
 
       - name: Build debug APK
         env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
         run: |
           ./gradlew :app:assembleDebug \
@@ -84,11 +83,10 @@ jobs:
       - name: Build signed release APK
         if: env.HAS_KEYSTORE == 'true'
         env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
-          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ZUKO_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ZUKO_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           ./gradlew :app:assembleRelease \
             --no-daemon \

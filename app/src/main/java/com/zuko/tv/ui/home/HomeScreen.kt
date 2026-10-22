@@ -90,9 +90,9 @@ fun HomeScreen(
     when (val s = state) {
         HomeUiState.Loading -> CenterMessage(title = "Loading movies")
         HomeUiState.MissingKey -> CenterMessage(
-            title = "Add your TMDB key",
+            title = "Movie service unavailable",
             body = "ZUKO TV gets posters and details from TMDB. Create a free key at themoviedb.org/settings/api, " +
-                "then add it as TMDB_API_KEY in local.properties or as a GitHub secret and rebuild.",
+                "Check your internet connection and the ZUKO TV Railway TMDB proxy configuration.",
         )
         is HomeUiState.Error -> CenterMessage(
             title = "Couldn't load movies",
