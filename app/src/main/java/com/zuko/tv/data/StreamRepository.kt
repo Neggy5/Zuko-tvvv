@@ -28,7 +28,9 @@ class StreamRepository(
                 val url = runflix.resolvePlayUrl(safeTitle, year)
                 if (!url.isNullOrBlank()) return url
                 errors += "Runflix: no stream for this title"
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
                 errors += "Runflix: ${e.message ?: e.javaClass.simpleName}"
             }
         } else {
@@ -43,7 +45,9 @@ class StreamRepository(
                 }
                 if (url != null) return url
                 errors += "Public archive: no stream"
-            } catch (e: Exception) {
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Throwable) {
                 errors += "Public archive: ${e.message ?: e.javaClass.simpleName}"
             }
         }

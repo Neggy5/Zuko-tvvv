@@ -49,7 +49,7 @@ class PlayerViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 PlayerState.Error(e.message ?: "Couldn't find a playable stream.")
             }
         }

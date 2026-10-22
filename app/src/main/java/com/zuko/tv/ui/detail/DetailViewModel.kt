@@ -83,7 +83,7 @@ class DetailViewModel(
                 }
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 _download.value = DownloadUiState.Failed(e.message ?: "Download failed.")
             }
         }

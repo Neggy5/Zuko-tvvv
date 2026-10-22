@@ -9,7 +9,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 /**
@@ -47,7 +46,7 @@ class RunflixAddonApi(
 
     suspend fun searchMovies(query: String): List<MetaPreview> = withContext(Dispatchers.IO) {
         if (!isConfigured || query.isBlank()) return@withContext emptyList()
-        val encoded = URLEncoder.encode(query.trim(), StandardCharsets.UTF_8)
+        val encoded = URLEncoder.encode(query.trim(), "UTF-8")
             .replace("+", "%20")
         // Stremio path: /catalog/movie/runflix-search/search=<q>.json
         val path = "/catalog/movie/runflix-search/search=$encoded.json"
