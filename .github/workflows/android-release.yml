@@ -24,8 +24,21 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Locate preinstalled Android SDK
+        shell: bash
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKM="$(find "$SDK/cmdline-tools" -path '*/bin/sdkmanager' 2>/dev/null | sort -V | tail -n1)"
+          [[ -n "$SDKM" ]] || { echo "sdkmanager not found under $SDK"; exit 1; }
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          dirname "$SDKM" >> "$GITHUB_PATH"
+
+      - name: Accept licenses and install SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager --install "platforms;android-36" "build-tools;36.0.0"
 
       - name: Decode release keystore
         env:
