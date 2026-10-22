@@ -1,13 +1,21 @@
 package com.zuko.tv
 
 import android.os.Bundle
-<<<<<<< HEAD
-=======
 import android.os.SystemClock
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,32 +27,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.nativeKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import com.zuko.tv.ui.splash.SplashIntro
-import com.zuko.tv.ui.theme.Ink
->>>>>>> b9d7488 (Fix ZUKO TV cinematic splash startup)
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.setContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-<<<<<<< HEAD
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-=======
->>>>>>> b9d7488 (Fix ZUKO TV cinematic splash startup)
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -74,27 +56,17 @@ class MainActivity : ComponentActivity() {
             val dark by app.themeStore.dark.collectAsState()
 
             ZukoTheme(darkTheme = dark) {
-<<<<<<< HEAD
-
-                var showSplash by rememberSaveable {
-                    mutableStateOf(true)
-                }
+                var showSplash by rememberSaveable { mutableStateOf(true) }
+                val splashStartedAt = remember { SystemClock.uptimeMillis() }
 
                 BackHandler(enabled = showSplash) {
                     showSplash = false
                 }
 
-=======
-                var showSplash by rememberSaveable { mutableStateOf(true) }
-                val splashStartedAt = remember { SystemClock.uptimeMillis() }
-                BackHandler(enabled = showSplash) { showSplash = false }
->>>>>>> b9d7488 (Fix ZUKO TV cinematic splash startup)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Ink)
-<<<<<<< HEAD
-=======
                         // While the intro plays, any key press skips it (and is not passed on).
                         .onPreviewKeyEvent { event ->
                             if (showSplash) {
@@ -110,8 +82,7 @@ class MainActivity : ComponentActivity() {
                             } else {
                                 false
                             }
-                        },
->>>>>>> b9d7488 (Fix ZUKO TV cinematic splash startup)
+                        }
                 ) {
                     if (showSplash) {
                         SplashIntro(
@@ -147,8 +118,6 @@ private fun ZukoApp(
     NavHost(
         navController = navController,
         startDestination = "home",
-<<<<<<< HEAD
-
         enterTransition = {
             fadeIn(
                 animationSpec = tween(340)
@@ -164,7 +133,6 @@ private fun ZukoApp(
                     animationSpec = tween(340)
                 )
         },
-
         exitTransition = {
             fadeOut(
                 animationSpec = tween(220)
@@ -180,7 +148,6 @@ private fun ZukoApp(
                     animationSpec = tween(220)
                 )
         },
-
         popEnterTransition = {
             fadeIn(
                 animationSpec = tween(340)
@@ -196,7 +163,6 @@ private fun ZukoApp(
                     animationSpec = tween(340)
                 )
         },
-
         popExitTransition = {
             fadeOut(
                 animationSpec = tween(220)
@@ -212,17 +178,9 @@ private fun ZukoApp(
                     animationSpec = tween(220)
                 )
         }
-=======
-        enterTransition = { fadeIn(tween(200)) },
-        exitTransition = { fadeOut(tween(200)) },
-        popEnterTransition = { fadeIn(tween(200)) },
-        popExitTransition = { fadeOut(tween(200)) },
->>>>>>> b9d7488 (Fix ZUKO TV cinematic splash startup)
     ) {
-
         // HOME SCREEN
         composable("home") {
-
             val viewModel: HomeViewModel = viewModel(
                 factory = viewModelFactory {
                     initializer {
@@ -238,7 +196,6 @@ private fun ZukoApp(
                 viewModel = viewModel,
                 darkTheme = dark,
                 onToggleTheme = onToggleTheme,
-
                 onOpenMovie = { id: Int ->
                     runCatching {
                         navController.navigate("detail/$id")
@@ -256,7 +213,6 @@ private fun ZukoApp(
                 }
             )
         ) { entry ->
-
             val id = entry.arguments?.getInt("movieId")
                 ?: return@composable
 
@@ -276,13 +232,11 @@ private fun ZukoApp(
 
             DetailScreen(
                 viewModel = viewModel,
-
                 onOpenMovie = { next: Int ->
                     runCatching {
                         navController.navigate("detail/$next")
                     }
                 },
-
                 onPlayMovie = { movie ->
                     runCatching {
                         navController.navigate("player/${movie.id}")
@@ -300,7 +254,6 @@ private fun ZukoApp(
                 }
             )
         ) { entry ->
-
             val id = entry.arguments?.getInt("movieId")
                 ?: return@composable
 
@@ -309,7 +262,6 @@ private fun ZukoApp(
                 movieRepository = repository,
                 streamRepository = streamRepository,
                 watchHistory = app.watchHistory,
-
                 onBack = {
                     navController.popBackStack()
                 }
