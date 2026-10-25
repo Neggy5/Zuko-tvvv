@@ -83,6 +83,42 @@ final class APIService {
         return try decoder.decode(Movie.self, from: data)
     }
 
+    func fetchTVShows() async throws -> [TVShow] {
+        let url = baseURL.appendingPathComponent("tv").appendingPathComponent("popular").appendingQueryItems([
+            URLQueryItem(name: "language", value: "en-US")
+        ])
+
+        let request = URLRequest(url: url)
+        let (data, response) = try await session.data(for: request)
+
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(TVShowListResponse.self, from: data).results
+    }
+
+    func fetchGenres() async throws -> [Genre] {
+        let url = baseURL.appendingPathComponent("genre").appendingPathComponent("movie").appendingPathComponent("list").appendingQueryItems([
+            URLQueryItem(name: "language", value: "en-US")
+        ])
+
+        let request = URLRequest(url: url)
+        let (data, response) = try await session.data(for: request)
+
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(GenreListResponse.self, from: data).genres
+    }
+
     func searchMovies(query: String) async throws -> [Movie] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
@@ -106,6 +142,46 @@ final class APIService {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(MovieListResponse.self, from: data).results
+    }
+
+    func resolvePublicStreamURL(title: String, year: String? = nil) async throws -> URL {
+        let host = ProcessInfo.processInfo.environment["STREAM_API_BASE"] ?? "https://athletic-consideration-production-c842.up.railway.app"
+        let sanitized = host.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        guard let base = URL(string: sanitized) else {
+            throw URLError(.badURL)
+        }
+
+        let endpoint = base
+            .appendingPathComponent("api")
+            .appendingPathComponent("v1")
+            .appendingPathComponent("public")
+            .appendingPathComponent("stream")
+
+        var components = URLComponents(url: endpoint, resolvingAgainstBase: false)!
+        var queryItems = [URLQueryItem(name: "title", value: title)]
+        if let year, !year.isEmpty {
+            queryItems.append(URLQueryItem(name: "year", value: year))
+        }
+        components.queryItems = queryItems
+
+        let request = URLRequest(url: components.url!)
+        let (data, response) = try await session.data(for: request)
+
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let stream = try decoder.decode(StreamResponse.self, from: data)
+
+        guard let resolved = stream.bestURL else {
+            throw URLError(.resourceUnavailable)
+        }
+
+        return resolved
     }
 
     private func fetchList(endpoint: String) async throws -> MovieListResponse {
@@ -163,6 +239,18 @@ extension Movie {
     }
 }
 
+extension TVShow {
+    var releaseYear: String? {
+        guard let firstAirDate, firstAirDate.count >= 4 else { return nil }
+        return String(firstAirDate.prefix(4))
+    }
+
+    var ratingString: String? {
+        guard let voteAverage else { return nil }
+        return String(format: "%.1f", voteAverage)
+    }
+}
+
 @MainActor
 final class DetailStore: ObservableObject {
     @Published var movie: Movie?
@@ -195,6 +283,7 @@ final class StreamPlayerController: ObservableObject {
     @Published var errorMessage: String?
 
     let player: AVPlayer
+    private let api = APIService()
 
     init() {
         self.player = AVPlayer()
@@ -205,11 +294,7 @@ final class StreamPlayerController: ObservableObject {
         errorMessage = nil
 
         do {
-            let fallback = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-            guard let url = URL(string: fallback) else {
-                throw URLError(.badURL)
-            }
-
+            let url = try await api.resolvePublicStreamURL(title: movie.title, year: movie.releaseYear)
             let item = AVPlayerItem(url: url)
             player.replaceCurrentItem(with: item)
             player.play()
@@ -240,6 +325,52 @@ final class SearchStore: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
             results = []
+        }
+
+        isLoading = false
+    }
+}
+
+@MainActor
+final class TvShowsStore: ObservableObject {
+    @Published var shows: [TVShow] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private let api = APIService()
+
+    func load() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            shows = try await api.fetchTVShows()
+        } catch {
+            errorMessage = error.localizedDescription
+            shows = []
+        }
+
+        isLoading = false
+    }
+}
+
+@MainActor
+final class GenresStore: ObservableObject {
+    @Published var genres: [Genre] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private let api = APIService()
+
+    func load() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            genres = try await api.fetchGenres()
+        } catch {
+            errorMessage = error.localizedDescription
+            genres = []
         }
 
         isLoading = false

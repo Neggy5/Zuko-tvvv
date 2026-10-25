@@ -71,6 +71,18 @@ struct ContentView: View {
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: TVShowsView()) {
+                        Image(systemName: "tv")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: GenreView()) {
+                        Image(systemName: "tag")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink(destination: SettingsView()) {
                         Image(systemName: "gearshape")
                     }
