@@ -177,7 +177,7 @@ class RunflixAddonApi(
         val url = try {
             (baseUrl + path).toHttpUrl()
         } catch (e: IllegalArgumentException) {
-            throw StreamException("Runflix addon URL is invalid. Check RUNFLIX_ADDON_BASE.", e)
+            throw StreamException("Streaming configuration is invalid.", e)
         }
         val request = Request.Builder()
             .url(url)
@@ -190,21 +190,21 @@ class RunflixAddonApi(
                 if (!response.isSuccessful) {
                     throw StreamException(
                         when (response.code) {
-                            404 -> "Runflix found no match for this title."
-                            429 -> "Runflix is rate limiting. Try again shortly."
-                            else -> "Runflix addon error (${response.code})."
+                            404 -> "No stream was found for this title."
+                            429 -> "Streaming is busy. Try again shortly."
+                            else -> "Streaming service error (${response.code})."
                         }
                     )
                 }
                 val text = response.body?.string().orEmpty()
-                if (text.isBlank()) throw StreamException("Runflix addon returned an empty response.")
+                if (text.isBlank()) throw StreamException("Streaming returned an empty response.")
                 return text
             }
         } catch (e: StreamException) {
             throw e
         } catch (e: IOException) {
             throw StreamException(
-                "Can't reach the Runflix addon. Check the TV internet connection and RUNFLIX_ADDON_BASE.",
+                "Can't reach streaming right now. Check the internet connection and try again.",
                 e,
             )
         }

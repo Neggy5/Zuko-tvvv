@@ -92,8 +92,7 @@ fun HomeScreen(
         HomeUiState.Loading -> CenterMessage(title = "Loading movies")
         HomeUiState.MissingKey -> CenterMessage(
             title = "Movie service unavailable",
-            body = "ZUKO TV gets posters and details from TMDB. Create a free key at themoviedb.org/settings/api, " +
-                "Check your internet connection and the ZUKO TV Railway TMDB proxy configuration.",
+            body = "Movie information is temporarily unavailable. Check your internet connection and try again.",
         )
         is HomeUiState.Error -> CenterMessage(
             title = "Couldn't load movies",
@@ -358,7 +357,7 @@ private fun HomeContent(
             }
             item(key = "credits") {
                 Text(
-                    text = "This product uses the TMDB API but is not endorsed or certified by TMDB.",
+                    text = "This product uses TMDB data and is not endorsed or certified by TMDB.",
                     style = ZukoType.small,
                     modifier = Modifier.padding(start = 48.dp, top = 8.dp),
                 )

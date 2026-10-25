@@ -17,15 +17,15 @@ fun prop(key: String, default: String = ""): String =
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
 
-val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+val releaseKeystorePath = System.getenv("ANDROID_KEYSTORE_PATH") ?: System.getenv("ZUKO_KEYSTORE_FILE")
 
 android {
     signingConfigs {
         create("release") {
             storeFile = releaseKeystorePath?.let { file(it) }
-            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
-            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "zukotv"
-            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: System.getenv("ZUKO_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: System.getenv("ZUKO_KEY_ALIAS") ?: "zukotv"
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ZUKO_KEY_PASSWORD") ?: ""
         }
     }
 
@@ -36,8 +36,8 @@ android {
         applicationId = "com.zuko.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.7.0-tv-shows"
+        versionCode = 12
+        versionName = "0.7.1-hardened"
 
         buildConfigField(
             "String",
@@ -53,8 +53,23 @@ android {
     }
 
     buildTypes {
-        release {
+        debug {
             isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            isDebuggable = false
+            // Strip debug symbols from native libs when present
+            ndk {
+                debugSymbolLevel = "NONE"
+            }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             signingConfig = if (releaseKeystorePath.isNullOrBlank()) {
                 signingConfigs.getByName("debug")
             } else {
@@ -74,7 +89,18 @@ android {
     }
 
     packaging {
-        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1",
+                "META-INF/*.kotlin_module",
+                "DebugProbesKt.bin",
+                "kotlin/**",
+                "**.properties"
+            )
+        }
     }
 }
 

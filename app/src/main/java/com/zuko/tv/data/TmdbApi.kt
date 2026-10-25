@@ -54,7 +54,7 @@ class TmdbApi(
                     val message = when (response.code) {
                         400 -> "TMDB rejected the request."
                         429 -> "TMDB is rate limiting this app. Try again in a moment."
-                        502, 503 -> "The TMDB proxy is unavailable or not configured on Railway."
+                        502, 503 -> "The movie information service is temporarily unavailable."
                         else -> "TMDB returned an error (${response.code})."
                     }
                     throw TmdbException(message)
@@ -68,7 +68,7 @@ class TmdbApi(
                 }
             }
         } catch (e: IOException) {
-            throw TmdbException("Can't reach the TMDB proxy. Check the TV's internet connection.", e)
+            throw TmdbException("Can't reach the movie information service. Check the internet connection.", e)
         }
     }
 

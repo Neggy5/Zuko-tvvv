@@ -1,10 +1,12 @@
 package com.zuko.tv
 
 import android.app.Application
+import android.os.Process
 import com.zuko.tv.data.MovieRepository
 import com.zuko.tv.data.StreamRepository
 import com.zuko.tv.data.TmdbApi
 import com.zuko.tv.data.WatchHistory
+import com.zuko.tv.security.IntegrityGuard
 import com.zuko.tv.ui.theme.ThemeStore
 import com.zuko.tv.ui.theme.ZukoPalette
 import kotlinx.coroutines.CoroutineScope
@@ -33,9 +35,15 @@ class ZukoApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        // Start with the saved mode already applied so there is no wrong-colour flash.
+
+        // Release-only environment checks (debuggable APK, debugger, common RE tools)
+        if (!BuildConfig.DEBUG && !IntegrityGuard.check(this)) {
+            // Fail closed without a detailed message (avoids helping attackers)
+            Process.killProcess(Process.myPid())
+            return
+        }
+
         ZukoPalette.darkness = if (themeStore.dark.value) 1f else 0f
-        // Wake the Railway addon early so Play doesn't hit a cold start.
         appScope.launch { streamRepository.warmUp() }
     }
 
