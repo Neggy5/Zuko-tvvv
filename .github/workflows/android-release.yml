@@ -51,6 +51,31 @@ jobs:
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zuko-tv-release.jks"
           test -s "$RUNNER_TEMP/zuko-tv-release.jks"
 
+      - name: Resolve release key alias
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || {
+            echo "ZUKO_KEYSTORE_PASSWORD secret is missing"
+            exit 1
+          }
+
+          if [ -n "$ANDROID_KEY_ALIAS" ]; then
+            echo "ANDROID_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "ZUKO_KEY_ALIAS=$ANDROID_KEY_ALIAS" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          alias_name="$(keytool -list -keystore "$RUNNER_TEMP/zuko-tv-release.jks" -storepass "$ANDROID_KEYSTORE_PASSWORD" 2>/dev/null | awk '/Alias name:/{print $3; exit}')"
+          test -n "$alias_name" || {
+            echo "No key alias found in keystore; verify ZUKO_KEY_ALIAS matches the keystore alias."
+            exit 1
+          }
+
+          echo "ANDROID_KEY_ALIAS=$alias_name" >> "$GITHUB_ENV"
+          echo "ZUKO_KEY_ALIAS=$alias_name" >> "$GITHUB_ENV"
+
       - name: Build signed release APK
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/zuko-tv-release.jks
