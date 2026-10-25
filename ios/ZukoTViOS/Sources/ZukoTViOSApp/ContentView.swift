@@ -65,10 +65,14 @@ struct ContentView: View {
             .navigationTitle("ZUKO TV")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await store.loadHome() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
+                    NavigationLink(destination: SearchView()) {
+                        Image(systemName: "magnifyingglass")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink(destination: SettingsView()) {
+                        Image(systemName: "gearshape")
                     }
                 }
             }

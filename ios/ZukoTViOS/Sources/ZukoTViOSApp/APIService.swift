@@ -1,6 +1,6 @@
 import Foundation
-import SwiftUI
 import AVKit
+import SwiftUI
 
 @MainActor
 final class AppStore: ObservableObject {
@@ -81,6 +81,31 @@ final class APIService {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         return try decoder.decode(Movie.self, from: data)
+    }
+
+    func searchMovies(query: String) async throws -> [Movie] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+
+        let url = baseURL
+            .appendingPathComponent("search")
+            .appendingPathComponent("movie")
+            .appendingQueryItems([
+                URLQueryItem(name: "query", value: trimmed),
+                URLQueryItem(name: "language", value: "en-US")
+            ])
+
+        let request = URLRequest(url: url)
+        let (data, response) = try await session.data(for: request)
+
+        guard let http = response as? HTTPURLResponse,
+              (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(MovieListResponse.self, from: data).results
     }
 
     private func fetchList(endpoint: String) async throws -> MovieListResponse {
@@ -170,20 +195,22 @@ final class StreamPlayerController: ObservableObject {
     @Published var errorMessage: String?
 
     let player: AVPlayer
-    private let movie: Movie
 
-    init(movie: Movie) {
-        self.movie = movie
+    init() {
         self.player = AVPlayer()
     }
 
-    func loadStream() async {
+    func loadStream(from movie: Movie) async {
         isLoading = true
         errorMessage = nil
 
         do {
-            let streamURL = try await resolveStreamURL(for: movie)
-            let item = AVPlayerItem(url: streamURL)
+            let fallback = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
+            guard let url = URL(string: fallback) else {
+                throw URLError(.badURL)
+            }
+
+            let item = AVPlayerItem(url: url)
             player.replaceCurrentItem(with: item)
             player.play()
         } catch {
@@ -192,10 +219,29 @@ final class StreamPlayerController: ObservableObject {
 
         isLoading = false
     }
+}
 
-    private func resolveStreamURL(for movie: Movie) async throws -> URL {
-        let fallback = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"
-        guard let url = URL(string: fallback) else { throw URLError(.badURL) }
-        return url
+@MainActor
+final class SearchStore: ObservableObject {
+    @Published var query = ""
+    @Published var results: [Movie] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private let api = APIService()
+
+    func search(_ text: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            results = try await api.searchMovies(query: trimmed)
+        } catch {
+            errorMessage = error.localizedDescription
+            results = []
+        }
+
+        isLoading = false
     }
 }

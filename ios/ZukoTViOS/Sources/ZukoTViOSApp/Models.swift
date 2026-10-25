@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 struct Genre: Decodable, Identifiable {
     let id: Int
@@ -13,6 +12,10 @@ struct CastMember: Decodable {
 
 struct Credits: Decodable {
     let cast: [CastMember]?
+}
+
+struct MovieListResponse: Decodable {
+    let results: [Movie]
 }
 
 struct Movie: Decodable, Identifiable {
@@ -30,23 +33,14 @@ struct Movie: Decodable, Identifiable {
     let imdbId: String?
 
     var posterURL: URL? {
-        guard let posterPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w342" + posterPath)
+        guard let path = posterPath, !path.isEmpty else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w342" + path)
     }
 
     var backdropURL: URL? {
-        guard let backdropPath ?? posterPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w1280" + effectiveBackdrop)
+        guard let path = backdropPath ?? posterPath, !path.isEmpty else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w1280" + path)
     }
-
-    private var effectiveBackdrop: String {
-        if let backdropPath, !backdropPath.isEmpty { return backdropPath }
-        return posterPath ?? ""
-    }
-}
-
-struct MovieListResponse: Decodable {
-    let results: [Movie]
 }
 
 struct HomeRow: Identifiable, Decodable {
@@ -65,21 +59,4 @@ struct HomeRow: Identifiable, Decodable {
         movies = try container.decode([Movie].self, forKey: .movies)
         id = title
     }
-}
-
-extension Movie {
-    static let placeholder = Movie(
-        id: 0,
-        title: "Loading",
-        overview: nil,
-        posterPath: nil,
-        backdropPath: nil,
-        releaseDate: nil,
-        voteAverage: nil,
-        runtime: nil,
-        genres: nil,
-        credits: nil,
-        similar: nil,
-        imdbId: nil
-    )
 }
