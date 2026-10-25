@@ -1,0 +1,15 @@
+*.iml
+.gradle/
+**/build/
+local.properties
+.idea/
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+node_modules/
+stream-backend/node_modules/

@@ -1,0 +1,212 @@
+package com.zuko.tv.data
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.IOException
+import java.net.URLEncoder
+import java.util.Locale
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
+
+/**
+ * Client for the ZUKO Runflix Stremio addon hosted on Railway.
+ * Base example: https://fuzzy-fortnight-production.up.railway.app
+ */
+class RunflixAddonApi(
+    private val client: OkHttpClient,
+    baseUrl: String,
+) {
+    private val baseUrl = baseUrl.trim().trimEnd('/')
+    private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+    val isConfigured: Boolean get() = baseUrl.startsWith("http", ignoreCase = true)
+
+    @Serializable
+    data class MetaPreview(
+        val id: String? = null,
+        val type: String? = null,
+        val name: String? = null,
+        val releaseInfo: String? = null,
+    )
+
+    @Serializable
+    data class CatalogResponse(val metas: List<MetaPreview> = emptyList())
+
+    @Serializable
+    data class StreamItem(
+        val name: String? = null,
+        val title: String? = null,
+        val url: String? = null,
+    )
+
+    @Serializable
+    data class StreamResponse(val streams: List<StreamItem> = emptyList())
+
+    suspend fun searchMovies(query: String): List<MetaPreview> = withContext(Dispatchers.IO) {
+        if (!isConfigured || query.isBlank()) return@withContext emptyList()
+        val encoded = URLEncoder.encode(query.trim(), "UTF-8")
+            .replace("+", "%20")
+        // Stremio path: /catalog/movie/runflix-search/search=<q>.json
+        val path = "/catalog/movie/runflix-search/search=$encoded.json"
+        val body = get(path)
+        json.decodeFromString<CatalogResponse>(body).metas
+            .filter { it.id != null && (it.type == null || it.type == "movie") }
+    }
+
+    suspend fun streamsFor(metaId: String): List<StreamItem> = withContext(Dispatchers.IO) {
+        if (!isConfigured || metaId.isBlank()) return@withContext emptyList()
+        val id = metaId.removePrefix("runflix:").let { "runflix:$it" }
+        val body = get("/stream/movie/$id.json")
+        json.decodeFromString<StreamResponse>(body).streams
+            .filter { !it.url.isNullOrBlank() }
+    }
+
+    /** Wakes the Railway service up (cold start) without caring about the result. */
+    suspend fun warmUp() = withContext(Dispatchers.IO) {
+        if (!isConfigured) return@withContext
+        try {
+            val warmClient = client.newBuilder().callTimeout(20, TimeUnit.SECONDS).build()
+            val req = Request.Builder()
+                .url("$baseUrl/manifest.json")
+                .header("User-Agent", "ZukoTV/0.5")
+                .get()
+                .build()
+            warmClient.newCall(req).execute().close()
+        } catch (_: Throwable) {
+            // best effort only
+        }
+    }
+
+    /**
+     * Returns several candidate stream URLs, best first: the closest title match's streams by
+     * quality, then streams of the next-best matches. Used so the player can fall back.
+     */
+    suspend fun resolvePlayUrls(title: String, year: String? = null, maxUrls: Int = 6): List<String> {
+        val metas = searchMovies(title)
+        if (metas.isEmpty()) return emptyList()
+
+        val titleNorm = title.trim().lowercase(Locale.US)
+        val yearNorm = year?.trim()?.take(4)
+        val ranked = metas.sortedWith(
+            compareByDescending<MetaPreview> {
+                val n = it.name?.trim()?.lowercase(Locale.US).orEmpty()
+                when {
+                    n == titleNorm -> 3
+                    n.contains(titleNorm) || titleNorm.contains(n) -> 2
+                    else -> 1
+                }
+            }.thenByDescending {
+                if (yearNorm != null && it.releaseInfo?.contains(yearNorm) == true) 1 else 0
+            }
+        )
+
+        val urls = LinkedHashSet<String>()
+        var lastError: Exception? = null
+        for (meta in ranked.take(3)) {
+            val id = meta.id ?: continue
+            val streams = try {
+                streamsFor(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                lastError = e
+                continue
+            }
+            streams
+                .sortedByDescending { qualityScore(it.name.orEmpty() + " " + it.title.orEmpty()) }
+                .mapNotNull { it.url?.trim() }
+                .filter { it.startsWith("http://") || it.startsWith("https://") }
+                .forEach { urls += it }
+            if (urls.size >= maxUrls) break
+        }
+        if (urls.isEmpty()) lastError?.let { throw it }
+        return urls.take(maxUrls)
+    }
+
+    /**
+     * Search by title (+ optional year), pick best meta match, return best stream URL.
+     */
+    suspend fun resolvePlayUrl(title: String, year: String? = null): String? {
+        val metas = searchMovies(title)
+        if (metas.isEmpty()) return null
+
+        val titleNorm = title.trim().lowercase(Locale.US)
+        val yearNorm = year?.trim()?.take(4)
+
+        val ranked = metas.sortedWith(
+            compareByDescending<MetaPreview> {
+                val n = it.name?.trim()?.lowercase(Locale.US).orEmpty()
+                when {
+                    n == titleNorm -> 3
+                    n.contains(titleNorm) || titleNorm.contains(n) -> 2
+                    else -> 1
+                }
+            }.thenByDescending {
+                if (yearNorm != null && it.releaseInfo?.contains(yearNorm) == true) 1 else 0
+            }
+        )
+
+        for (meta in ranked) {
+            val id = meta.id ?: continue
+            val streams = streamsFor(id)
+            val best = streams.maxByOrNull { qualityScore(it.name + " " + it.title) }
+            val url = best?.url?.trim()
+            if (!url.isNullOrEmpty() && (url.startsWith("http://") || url.startsWith("https://"))) {
+                return url
+            }
+        }
+        return null
+    }
+
+    private fun qualityScore(label: String): Int {
+        val s = label.lowercase(Locale.US)
+        return when {
+            "1080" in s -> 1080
+            "720" in s -> 720
+            "480" in s -> 480
+            "360" in s -> 360
+            else -> 1
+        }
+    }
+
+    private fun get(path: String): String {
+        val url = try {
+            (baseUrl + path).toHttpUrl()
+        } catch (e: IllegalArgumentException) {
+            throw StreamException("Streaming configuration is invalid.", e)
+        }
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", "ZukoTV/0.2")
+            .get()
+            .build()
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw StreamException(
+                        when (response.code) {
+                            404 -> "No stream was found for this title."
+                            429 -> "Streaming is busy. Try again shortly."
+                            else -> "Streaming service error (${response.code})."
+                        }
+                    )
+                }
+                val text = response.body?.string().orEmpty()
+                if (text.isBlank()) throw StreamException("Streaming returned an empty response.")
+                return text
+            }
+        } catch (e: StreamException) {
+            throw e
+        } catch (e: IOException) {
+            throw StreamException(
+                "Can't reach streaming right now. Check the internet connection and try again.",
+                e,
+            )
+        }
+    }
+}
