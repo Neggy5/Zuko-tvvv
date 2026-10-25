@@ -51,8 +51,7 @@ struct DetailView: View {
                 }
                 .padding(.horizontal)
 
-                if detailStore.movie != nil {
-                    let detail = detailStore.movie!
+                if let detail = detailStore.movie {
                     if !detail.castNames.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Cast")

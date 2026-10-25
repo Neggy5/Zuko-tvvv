@@ -35,9 +35,7 @@ struct ContentView: View {
                                                 NavigationLink(destination: DetailView(movie: movie)) {
                                                     VStack(alignment: .leading, spacing: 8) {
                                                         AsyncImage(url: movie.posterURL) { image in
-                                                            image
-                                                                .resizable()
-                                                                .scaledToFill()
+                                                            image.resizable().scaledToFill()
                                                         } placeholder: {
                                                             Color.gray.opacity(0.25)
                                                         }

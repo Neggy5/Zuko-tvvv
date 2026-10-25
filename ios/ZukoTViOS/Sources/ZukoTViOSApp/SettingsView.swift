@@ -1,29 +1,26 @@
 import SwiftUI
 
-struct GenreView: View {
-    @StateObject private var store = GenresStore()
+struct SettingsView: View {
+    @AppStorage("zuko.darkMode") private var darkMode = true
+    @AppStorage("zuko.streamBase") private var streamBase = "https://athletic-consideration-production-c842.up.railway.app"
 
     var body: some View {
-        Group {
-            if store.isLoading {
-                ProgressView("Loading genres...")
-            } else if let error = store.errorMessage {
-                VStack(spacing: 12) {
-                    Text("Could not load genres")
-                        .font(.headline)
-                    Text(error)
-                        .foregroundStyle(.secondary)
-                }
-                .padding()
-            } else {
-                List(store.genres) { genre in
-                    Text(genre.name)
-                }
+        Form {
+            Section("Appearance") {
+                Toggle("Dark mode", isOn: $darkMode)
+            }
+
+            Section("Streaming") {
+                TextField("Stream API base", text: $streamBase)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+            }
+
+            Section("About") {
+                Text("ZUKO TV iPhone port")
+                Text("Backend-compatible with the Android API patterns.")
             }
         }
-        .task {
-            await store.load()
-        }
-        .navigationTitle("Genres")
+        .navigationTitle("Settings")
     }
 }
