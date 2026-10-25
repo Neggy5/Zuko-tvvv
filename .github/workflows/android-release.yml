@@ -42,10 +42,10 @@ jobs:
 
       - name: Decode release keystore
         env:
-          KEYSTORE_BASE64: ${{ secrets.ZUKO_KEYSTOR_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.ZUKO_KEYSTORE_BASE64 }}
         run: |
           test -n "$KEYSTORE_BASE64" || {
-            echo "ZUKO_KEYSTOR_BASE64 secret is missing"
+            echo "ZUKO_KEYSTORE_BASE64 secret is missing"
             exit 1
           }
           echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zuko-tv-release.jks"
@@ -53,20 +53,24 @@ jobs:
 
       - name: Build signed release APK
         env:
-          ZUKO_KEYSTORE_PATH: ${{ runner.temp }}/zuko-tv-release.jks
-          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTOR_PASSWORD }}
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/zuko-tv-release.jks
+          ZUKO_KEYSTORE_FILE: ${{ runner.temp }}/zuko-tv-release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
+          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
           ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
           ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
         run: |
-          test -n "$ZUKO_KEYSTORE_PASSWORD" || {
-            echo "ZUKO_KEYSTOR_PASSWORD secret is missing"
+          test -n "$ANDROID_KEYSTORE_PASSWORD" || {
+            echo "ZUKO_KEYSTORE_PASSWORD secret is missing"
             exit 1
           }
-          test -n "$ZUKO_KEY_ALIAS" || {
+          test -n "$ANDROID_KEY_ALIAS" || {
             echo "ZUKO_KEY_ALIAS secret is missing"
             exit 1
           }
-          test -n "$ZUKO_KEY_PASSWORD" || {
+          test -n "$ANDROID_KEY_PASSWORD" || {
             echo "ZUKO_KEY_PASSWORD secret is missing"
             exit 1
           }
