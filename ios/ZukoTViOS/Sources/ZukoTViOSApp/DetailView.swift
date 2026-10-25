@@ -1,5 +1,4 @@
 import SwiftUI
-import AVKit
 
 struct DetailView: View {
     let movie: Movie
@@ -33,7 +32,7 @@ struct DetailView: View {
                     .foregroundStyle(.secondary)
 
                     if let genres = movie.genres, !genres.isEmpty {
-                        Text(genres.map(\ .name).joined(separator: ", "))
+                        Text(genres.map { $0.name }.joined(separator: ", "))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -44,22 +43,21 @@ struct DetailView: View {
                             .foregroundStyle(.primary)
                     }
 
-                    HStack(spacing: 14) {
-                        NavigationLink(destination: PlayerView(movie: movie)) {
-                            Label("Play", systemImage: "play.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
+                    NavigationLink(destination: PlayerView(movie: movie)) {
+                        Label("Play", systemImage: "play.fill")
+                            .frame(maxWidth: .infinity)
                     }
+                    .buttonStyle(.borderedProminent)
                 }
                 .padding(.horizontal)
 
-                if let detail = detailStore.movie {
-                    if let castNames = detail.castNames, !castNames.isEmpty {
+                if detailStore.movie != nil {
+                    let detail = detailStore.movie!
+                    if !detail.castNames.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Cast")
                                 .font(.headline)
-                            Text(castNames.joined(separator: ", "))
+                            Text(detail.castNames.joined(separator: ", "))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -134,10 +132,7 @@ struct PlayerView: View {
             }
         }
         .task {
-            await playerController.loadStream()
+            await playerController.loadStream(from: movie)
         }
-        .toolbar(.hidden, for: .tabBar)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
-
