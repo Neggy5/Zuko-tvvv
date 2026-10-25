@@ -28,7 +28,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 class ZukoApplication : Application() {
-    private val client by lazy {
+    val httpClient by lazy {
         OkHttpClient.Builder()
             .cache(Cache(File(cacheDir, "http"), 20L * 1024 * 1024))
             .connectTimeout(20, TimeUnit.SECONDS)
@@ -67,7 +67,7 @@ class ZukoApplication : Application() {
         SingletonImageLoader.setSafe { ctx ->
             ImageLoader.Builder(ctx)
                 .components {
-                    add(OkHttpNetworkFetcherFactory(callFactory = { client }))
+                    add(OkHttpNetworkFetcherFactory(callFactory = { httpClient }))
                 }
                 .memoryCache {
                     MemoryCache.Builder()
@@ -89,14 +89,14 @@ class ZukoApplication : Application() {
 
     val repository: MovieRepository by lazy {
         MovieRepository(
-            api = TmdbApi(client, BuildConfig.TMDB_PROXY_BASE),
-            nollywood = NollywoodApi(client),
+            api = TmdbApi(httpClient, BuildConfig.TMDB_PROXY_BASE),
+            nollywood = NollywoodApi(httpClient),
         )
     }
 
     val streamRepository: StreamRepository by lazy {
         StreamRepository(
-            client = client,
+            client = httpClient,
             streamApiBase = BuildConfig.STREAM_API_BASE,
             runflixAddonBase = BuildConfig.RUNFLIX_ADDON_BASE,
         )

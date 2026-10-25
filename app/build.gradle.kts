@@ -50,6 +50,18 @@ android {
             "RUNFLIX_ADDON_BASE",
             "\"${prop("RUNFLIX_ADDON_BASE", "https://athletic-consideration-production-c842.up.railway.app")}\""
         )
+
+        // Runflix/DaraTech football live API — free key: https://apimovie.runflix.name.ng/request-key
+        buildConfigField(
+            "String",
+            "RUNFLIX_API_BASE",
+            "\"${prop("RUNFLIX_API_BASE", "https://apimovie.runflix.name.ng")}\""
+        )
+        buildConfigField(
+            "String",
+            "RUNFLIX_API_KEY",
+            "\"${prop("RUNFLIX_API_KEY", "zukoxmdapi")}\""
+        )
     }
 
     buildTypes {

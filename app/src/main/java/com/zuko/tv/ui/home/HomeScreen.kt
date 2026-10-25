@@ -81,6 +81,7 @@ fun HomeScreen(
     onOpenSettings: () -> Unit,
     onOpenGenres: () -> Unit,
     onOpenTvShows: () -> Unit,
+    onOpenFootball: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val query by viewModel.query.collectAsState()
@@ -131,6 +132,7 @@ fun HomeScreen(
                                 Spacer(Modifier.width(6.dp))
                                 TextButton(onClick = onOpenGenres) { Text("Genres") }
                                 TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                                TextButton(onClick = onOpenFootball) { Text("⚽ Football") }
                                 TextButton(onClick = onOpenSettings) { Text("Settings") }
                             }
                         }
@@ -152,6 +154,7 @@ fun HomeScreen(
                             Spacer(Modifier.width(8.dp))
                             TextButton(onClick = onOpenGenres) { Text("Genres") }
                             TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                                TextButton(onClick = onOpenFootball) { Text("⚽ Football") }
                             TextButton(onClick = onOpenSettings) { Text("Settings") }
                         }
                     }

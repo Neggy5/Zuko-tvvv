@@ -36,6 +36,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.zuko.tv.ui.detail.DetailScreen
 import com.zuko.tv.ui.detail.DetailViewModel
+import com.zuko.tv.ui.LiveFootballScreen
 import com.zuko.tv.ui.home.HomeScreen
 import com.zuko.tv.ui.home.HomeViewModel
 import com.zuko.tv.ui.player.PlayerScreen
@@ -109,6 +110,7 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (Stri
                 onOpenSettings = { navController.navigate("settings") },
                 onOpenGenres = { navController.navigate("genres") },
                 onOpenTvShows = { navController.navigate("tvshows") },
+                onOpenFootball = { navController.navigate("football") },
                 onOpenMovie = { id: Int ->
                     runCatching { navController.navigate("detail/$id") }
                 },
@@ -139,6 +141,12 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (Stri
             com.zuko.tv.ui.TvPlayerScreen(showId, title, year, season, episode, count, streamRepository,
                 onBack = { navController.popBackStack() },
                 onNextEpisode = { navController.navigate("tvplayer/$showId/${Uri.encode(title)}/${year.ifBlank { "0" }}/$season/${episode + 1}/$count") { popUpTo("tvplayer/$showId/${Uri.encode(title)}/${year.ifBlank { "0" }}/$season/$episode/$count") { inclusive = true } } },
+            )
+        }
+        composable("football") {
+            LiveFootballScreen(
+                client = app.httpClient,
+                onBack = { navController.popBackStack() },
             )
         }
         composable("settings") {
