@@ -81,68 +81,75 @@ jobs:
             --no-daemon \
             --stacktrace
 
-      - name: Restore release keystore
-        if: env.HAS_KEYSTORE == 'true'
-        env:
-          KEYSTORE_B64: ${{ secrets.ZUKO_KEYSTORE_BASE64 }}
-          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
-          ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
-          ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
-        shell: bash
-        run: |
-          if [[ -z "${KEYSTORE_B64}" ]]; then
-            echo "::error::ZUKO_KEYSTORE_BASE64 is empty."
-            exit 1
-          fi
+      env:
+  HAS_KEYSTORE: ${{ secrets.ZUKO_KEYSTORE_BASE64 != '' }}
+  HAS_RELEASE_SIGNING: ${{ secrets.ZUKO_KEYSTORE_BASE64 != '' && secrets.ZUKO_KEYSTORE_PASSWORD != '' && secrets.ZUKO_KEY_ALIAS != '' && secrets.ZUKO_KEY_PASSWORD != '' }}
+  TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  TG_CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+  STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
 
-          if [[ -z "${ZUKO_KEYSTORE_PASSWORD}" ]]; then
-            echo "::error::ZUKO_KEYSTORE_PASSWORD is missing."
-            exit 1
-          fi
+steps:
+  - name: Restore release keystore
+    if: env.HAS_RELEASE_SIGNING == 'true'
+    env:
+      KEYSTORE_B64: ${{ secrets.ZUKO_KEYSTORE_BASE64 }}
+      ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
+      ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
+      ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
+    shell: bash
+    run: |
+      if [[ -z "${KEYSTORE_B64}" ]]; then
+        echo "::error::ZUKO_KEYSTORE_BASE64 is empty."
+        exit 1
+      fi
 
-          if [[ -z "${ZUKO_KEY_ALIAS}" ]]; then
-            echo "::error::ZUKO_KEY_ALIAS is missing."
-            exit 1
-          fi
+      if [[ -z "${ZUKO_KEYSTORE_PASSWORD}" ]]; then
+        echo "::error::ZUKO_KEYSTORE_PASSWORD is missing."
+        exit 1
+      fi
 
-          if [[ -z "${ZUKO_KEY_PASSWORD}" ]]; then
-            echo "::error::ZUKO_KEY_PASSWORD is missing."
-            exit 1
-          fi
+      if [[ -z "${ZUKO_KEY_ALIAS}" ]]; then
+        echo "::error::ZUKO_KEY_ALIAS is missing."
+        exit 1
+      fi
 
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/zuko-release.jks"
+      if [[ -z "${ZUKO_KEY_PASSWORD}" ]]; then
+        echo "::error::ZUKO_KEY_PASSWORD is missing."
+        exit 1
+      fi
 
-          # Export both forms so Gradle can find them reliably
-          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
-          echo "ANDROID_KEYSTORE_PASSWORD=${ZUKO_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
-          echo "ANDROID_KEY_ALIAS=${ZUKO_KEY_ALIAS}" >> "$GITHUB_ENV"
-          echo "ANDROID_KEY_PASSWORD=${ZUKO_KEY_PASSWORD}" >> "$GITHUB_ENV"
+      echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/zuko-release.jks"
 
-          echo "ZUKO_KEYSTORE_FILE=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
-          echo "ZUKO_KEYSTORE_PASSWORD=${ZUKO_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
-          echo "ZUKO_KEY_ALIAS=${ZUKO_KEY_ALIAS}" >> "$GITHUB_ENV"
-          echo "ZUKO_KEY_PASSWORD=${ZUKO_KEY_PASSWORD}" >> "$GITHUB_ENV"
+      echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
+      echo "ANDROID_KEYSTORE_PASSWORD=${ZUKO_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+      echo "ANDROID_KEY_ALIAS=${ZUKO_KEY_ALIAS}" >> "$GITHUB_ENV"
+      echo "ANDROID_KEY_PASSWORD=${ZUKO_KEY_PASSWORD}" >> "$GITHUB_ENV"
 
-      - name: Validate keystore
-        if: env.HAS_KEYSTORE == 'true' && env.HAS_RELEASE_SIGNING == 'true'
-        shell: bash
-        run: |
-          keytool -list -v \
-            -keystore "$RUNNER_TEMP/zuko-release.jks" \
-            -storepass "${{ secrets.ZUKO_KEYSTORE_PASSWORD }}" \
-            -alias "${{ secrets.ZUKO_KEY_ALIAS }}" \
-            >/dev/null
-          echo "Keystore validated successfully."
+      echo "ZUKO_KEYSTORE_FILE=$RUNNER_TEMP/zuko-release.jks" >> "$GITHUB_ENV"
+      echo "ZUKO_KEYSTORE_PASSWORD=${ZUKO_KEYSTORE_PASSWORD}" >> "$GITHUB_ENV"
+      echo "ZUKO_KEY_ALIAS=${ZUKO_KEY_ALIAS}" >> "$GITHUB_ENV"
+      echo "ZUKO_KEY_PASSWORD=${ZUKO_KEY_PASSWORD}" >> "$GITHUB_ENV"
 
-      - name: Build signed release APK
-        if: env.HAS_KEYSTORE == 'true' && env.HAS_RELEASE_SIGNING == 'true'
-        env:
-          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-          STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
-          ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
-          ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
-          ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
-        run: |
-          ./gradlew :app:assembleRelease \
-            --no-daemon \
-            --stacktrace
+  - name: Validate keystore
+    if: env.HAS_RELEASE_SIGNING == 'true'
+    shell: bash
+    run: |
+      keytool -list -v \
+        -keystore "$RUNNER_TEMP/zuko-release.jks" \
+        -storepass "${{ secrets.ZUKO_KEYSTORE_PASSWORD }}" \
+        -alias "${{ secrets.ZUKO_KEY_ALIAS }}" \
+        >/dev/null
+      echo "Keystore validated successfully."
+
+  - name: Build signed release APK
+    if: env.HAS_RELEASE_SIGNING == 'true'
+    env:
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+      STREAM_API_BASE: https://zuko-tv-streaming-production.up.railway.app
+      ZUKO_KEYSTORE_PASSWORD: ${{ secrets.ZUKO_KEYSTORE_PASSWORD }}
+      ZUKO_KEY_ALIAS: ${{ secrets.ZUKO_KEY_ALIAS }}
+      ZUKO_KEY_PASSWORD: ${{ secrets.ZUKO_KEY_PASSWORD }}
+    run: |
+      ./gradlew :app:assembleRelease \
+        --no-daemon \
+        --stacktrace
