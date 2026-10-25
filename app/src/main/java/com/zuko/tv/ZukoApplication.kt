@@ -14,7 +14,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.disk.directory
+import coil3.memory.MemoryCache
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.crossfade
 import okhttp3.Cache
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -25,6 +33,15 @@ class ZukoApplication : Application() {
             .cache(Cache(File(cacheDir, "http"), 20L * 1024 * 1024))
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(Interceptor { chain ->
+                val req = chain.request().newBuilder()
+                    .header(
+                        "User-Agent",
+                        "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0.0.0 Mobile Safari/537.36"
+                    )
+                    .build()
+                chain.proceed(req)
+            })
             .build()
     }
 
@@ -45,6 +62,28 @@ class ZukoApplication : Application() {
         }
 
         ZukoPalette.darkness = if (themeStore.dark.value) 1f else 0f
+
+        // Coil3 must use OkHttp network fetcher or many CDNs fail silently in release.
+        SingletonImageLoader.setSafe { ctx ->
+            ImageLoader.Builder(ctx)
+                .components {
+                    add(OkHttpNetworkFetcherFactory(callFactory = { client }))
+                }
+                .memoryCache {
+                    MemoryCache.Builder()
+                        .maxSizePercent(ctx, 0.25)
+                        .build()
+                }
+                .diskCache {
+                    DiskCache.Builder()
+                        .directory(ctx.cacheDir.resolve("coil_images"))
+                        .maxSizeBytes(50L * 1024 * 1024)
+                        .build()
+                }
+                .crossfade(true)
+                .build()
+        }
+
         appScope.launch { streamRepository.warmUp() }
     }
 

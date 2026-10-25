@@ -35,6 +35,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import androidx.compose.ui.platform.LocalContext
 import com.zuko.tv.data.MovieSummary
 import com.zuko.tv.data.Tmdb
 import com.zuko.tv.ui.theme.Ink
@@ -83,9 +86,14 @@ fun PosterCard(
             .clickable(onClick = onClick),
     ) {
         val path = movie.posterPath
+        val context = LocalContext.current
         if (path != null) {
+            val url = Tmdb.poster(path)
             AsyncImage(
-                model = Tmdb.poster(path),
+                model = ImageRequest.Builder(context)
+                    .data(url)
+                    .crossfade(true)
+                    .build(),
                 contentDescription = movie.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize(),

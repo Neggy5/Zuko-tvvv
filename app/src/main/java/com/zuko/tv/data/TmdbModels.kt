@@ -60,12 +60,18 @@ data class HomeRow(
 
 object Tmdb {
     private const val IMAGE_BASE = "https://image.tmdb.org/t/p/"
-    fun poster(path: String): String =
-        if (path.startsWith("http://") || path.startsWith("https://")) path
-        else "${IMAGE_BASE}w342$path"
-    fun backdrop(path: String): String =
-        if (path.startsWith("http://") || path.startsWith("https://")) path
-        else "${IMAGE_BASE}w1280$path"
+    fun poster(path: String): String {
+        val p = path.trim()
+        if (p.startsWith("http://") || p.startsWith("https://")) return p
+        val normalized = if (p.startsWith("/")) p else "/$p"
+        return "${IMAGE_BASE}w342$normalized"
+    }
+    fun backdrop(path: String): String {
+        val p = path.trim()
+        if (p.startsWith("http://") || p.startsWith("https://")) return p
+        val normalized = if (p.startsWith("/")) p else "/$p"
+        return "${IMAGE_BASE}w1280$normalized"
+    }
 }
 
 fun String?.toYear(): String? =

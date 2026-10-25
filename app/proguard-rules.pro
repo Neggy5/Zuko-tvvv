@@ -40,8 +40,12 @@
 -dontwarn okio.**
 -keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
 
-# Coil
+# Coil3 (network image loading — must not be stripped by R8)
+-keep class coil3.** { *; }
+-keep interface coil3.** { *; }
+-dontwarn coil3.**
 -dontwarn coil.**
+
 
 # Compose / Kotlin metadata needed at runtime
 -keep class kotlin.Metadata { *; }
