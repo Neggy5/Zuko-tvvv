@@ -1,100 +1,85 @@
+import Foundation
 import SwiftUI
 
-@MainActor
-final class HomeViewModel: ObservableObject {
-    @Published var rows: [HomeRow] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+struct Genre: Decodable, Identifiable {
+    let id: Int
+    let name: String
+}
 
-    private let api = APIService()
+struct CastMember: Decodable {
+    let name: String?
+    let character: String?
+}
 
-    func loadHome() async {
-        isLoading = true
-        errorMessage = nil
+struct Credits: Decodable {
+    let cast: [CastMember]?
+}
 
-        do {
-            let result = try await api.fetchHomeRows()
-            rows = result
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+struct Movie: Decodable, Identifiable {
+    let id: Int
+    let title: String
+    let overview: String?
+    let posterPath: String?
+    let backdropPath: String?
+    let releaseDate: String?
+    let voteAverage: Double?
+    let runtime: Int?
+    let genres: [Genre]?
+    let credits: Credits?
+    let similar: MovieListResponse?
+    let imdbId: String?
 
-        isLoading = false
+    var posterURL: URL? {
+        guard let posterPath else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w342" + posterPath)
+    }
+
+    var backdropURL: URL? {
+        guard let backdropPath ?? posterPath else { return nil }
+        return URL(string: "https://image.tmdb.org/t/p/w1280" + effectiveBackdrop)
+    }
+
+    private var effectiveBackdrop: String {
+        if let backdropPath, !backdropPath.isEmpty { return backdropPath }
+        return posterPath ?? ""
     }
 }
 
-struct ContentView: View {
-    @ObservedObject var viewModel: HomeViewModel
+struct MovieListResponse: Decodable {
+    let results: [Movie]
+}
 
-    var body: some View {
-        NavigationStack {
-            Group {
-                if viewModel.isLoading {
-                    ProgressView("Loading ZUKO TV...")
-                } else if let error = viewModel.errorMessage {
-                    VStack(spacing: 16) {
-                        Text("Unable to load content")
-                            .font(.headline)
-                        Text(error)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                        Button("Retry") {
-                            Task { await viewModel.loadHome() }
-                        }
-                    }
-                    .padding()
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 20) {
-                            ForEach(viewModel.rows) { row in
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text(row.title)
-                                        .font(.headline)
-                                        .padding(.horizontal)
+struct HomeRow: Identifiable, Decodable {
+    let id: String
+    let title: String
+    let movies: [Movie]
 
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 12) {
-                                            ForEach(row.items) { movie in
-                                                VStack(alignment: .leading, spacing: 8) {
-                                                    AsyncImage(url: movie.posterURL) { image in
-                                                        image
-                                                            .resizable()
-                                                            .aspectRatio(contentMode: .fill)
-                                                    } placeholder: {
-                                                        Color.gray.opacity(0.3)
-                                                    }
-                                                    .frame(width: 120, height: 180)
-                                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                                                    Text(movie.title)
-                                                        .font(.caption)
-                                                        .lineLimit(2)
-                                                        .frame(width: 120, alignment: .leading)
-                                                }
-                                            }
-                                        }
-                                        .padding(.horizontal)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.top)
-                    }
-                }
-            }
-            .navigationTitle("ZUKO TV")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await viewModel.loadHome() }
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                }
-            }
-        }
-        .task {
-            await viewModel.loadHome()
-        }
+    enum CodingKeys: String, CodingKey {
+        case title
+        case movies
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try container.decode(String.self, forKey: .title)
+        movies = try container.decode([Movie].self, forKey: .movies)
+        id = title
+    }
+}
+
+extension Movie {
+    static let placeholder = Movie(
+        id: 0,
+        title: "Loading",
+        overview: nil,
+        posterPath: nil,
+        backdropPath: nil,
+        releaseDate: nil,
+        voteAverage: nil,
+        runtime: nil,
+        genres: nil,
+        credits: nil,
+        similar: nil,
+        imdbId: nil
+    )
 }

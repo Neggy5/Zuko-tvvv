@@ -2,11 +2,11 @@ import SwiftUI
 
 @main
 struct ZukoTViOSApp: App {
-    @StateObject private var viewModel = HomeViewModel()
+    @StateObject private var store = AppStore()
 
     var body: some Scene {
         WindowGroup {
-            ContentView(viewModel: viewModel)
+            ContentView(store: store)
         }
     }
 }
