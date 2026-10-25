@@ -49,7 +49,7 @@ class PlayerViewModel(
         _state.value = PlayerState.Loading
         viewModelScope.launch {
             _state.value = try {
-                if (tmdbId <= 0) {
+                if (tmdbId == 0) {
                     PlayerState.Error("Invalid movie id.")
                 } else {
                     val d = runCatching { movieRepository.details(tmdbId) }.getOrNull()

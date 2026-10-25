@@ -51,14 +51,29 @@ class StreamRepository(
         val errors = mutableListOf<String>()
         var urls: List<String> = emptyList()
 
-        // Primary provider: Omega / MovieBox.
-        try {
-            urls = movieBox.resolve(safeTitle, year)
-            if (urls.isEmpty()) errors += "Omega: no playable stream"
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            errors += "Omega: ${e.message ?: e.javaClass.simpleName}"
+        // Primary provider: Omega / MovieBox (title variants help Nollywood).
+        val titleVariants = buildList {
+            add(safeTitle)
+            val cleaned = safeTitle
+                .replace(Regex("\\[.*?\\]"), " ")
+                .replace(Regex("\\(.*?\\)"), " ")
+                .replace(Regex("(?i)full movie|nollywood|nigerian|official"), " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
+            if (cleaned.isNotBlank() && !cleaned.equals(safeTitle, ignoreCase = true)) add(cleaned)
+            val short = cleaned.split(" ").filter { it.isNotBlank() }.take(5).joinToString(" ")
+            if (short.isNotBlank() && !short.equals(cleaned, ignoreCase = true)) add(short)
+        }.distinct()
+        for (variant in titleVariants) {
+            if (urls.isNotEmpty()) break
+            try {
+                urls = movieBox.resolve(variant, year)
+                if (urls.isEmpty()) errors += "Omega($variant): no stream"
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                errors += "Omega($variant): ${e.message ?: e.javaClass.simpleName}"
+            }
         }
 
         // Secondary provider: Runflix. Only try it if Omega has no stream.

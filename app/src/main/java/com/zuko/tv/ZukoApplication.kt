@@ -3,6 +3,7 @@ package com.zuko.tv
 import android.app.Application
 import android.os.Process
 import com.zuko.tv.data.MovieRepository
+import com.zuko.tv.data.NollywoodApi
 import com.zuko.tv.data.StreamRepository
 import com.zuko.tv.data.TmdbApi
 import com.zuko.tv.data.WatchHistory
@@ -48,7 +49,10 @@ class ZukoApplication : Application() {
     }
 
     val repository: MovieRepository by lazy {
-        MovieRepository(TmdbApi(client, BuildConfig.TMDB_PROXY_BASE))
+        MovieRepository(
+            api = TmdbApi(client, BuildConfig.TMDB_PROXY_BASE),
+            nollywood = NollywoodApi(client),
+        )
     }
 
     val streamRepository: StreamRepository by lazy {
