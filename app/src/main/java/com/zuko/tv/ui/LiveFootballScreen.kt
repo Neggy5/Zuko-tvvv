@@ -108,7 +108,7 @@ fun LiveFootballScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("← Back", color = TextHi) }
-            Text("⚽ Live Football", style = ZukoType.screenTitle, color = TextHi, modifier = Modifier.weight(1f))
+            Text("⚽ Live Football", style = ZukoType.title, color = TextHi, modifier = Modifier.weight(1f))
             TextButton(onClick = { reload() }) { Text("Refresh", color = TextHi) }
         }
 
