@@ -39,6 +39,7 @@ import com.zuko.tv.ui.detail.DetailViewModel
 import com.zuko.tv.ui.LiveFootballScreen
 import com.zuko.tv.ui.AnimeScreen
 import com.zuko.tv.ui.MangaScreen
+import com.zuko.tv.ui.LiveTvScreen
 import com.zuko.tv.ui.home.HomeScreen
 import com.zuko.tv.ui.home.HomeViewModel
 import com.zuko.tv.ui.player.PlayerScreen
@@ -115,6 +116,8 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (Stri
                 onOpenFootball = { navController.navigate("football") },
                 onOpenAnime = { navController.navigate("anime") },
                 onOpenManga = { navController.navigate("manga") },
+                onOpenLiveTv = { navController.navigate("livetv") },
+                onOpenBallon = { navController.navigate("livetv/ballon") },
                 onOpenMovie = { id: Int ->
                     runCatching { navController.navigate("detail/$id") }
                 },
@@ -158,6 +161,12 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (Stri
         }
         composable("manga") {
             MangaScreen(client = app.httpClient, onBack = { navController.popBackStack() })
+        }
+        composable("livetv") {
+            LiveTvScreen(client = app.httpClient, onBack = { navController.popBackStack() }, initialTab = 0)
+        }
+        composable("livetv/ballon") {
+            LiveTvScreen(client = app.httpClient, onBack = { navController.popBackStack() }, initialTab = 2)
         }
 
         composable("settings") {

@@ -86,6 +86,8 @@ fun HomeScreen(
     onOpenFootball: () -> Unit,
     onOpenAnime: () -> Unit,
     onOpenManga: () -> Unit,
+    onOpenLiveTv: () -> Unit,
+    onOpenBallon: () -> Unit,
 ) {
     val state by viewModel.state.collectAsState()
     val query by viewModel.query.collectAsState()
@@ -145,6 +147,8 @@ fun HomeScreen(
                                     TextButton(onClick = onOpenFootball) { Text("Football") }
                                     TextButton(onClick = onOpenAnime) { Text("Anime") }
                                     TextButton(onClick = onOpenManga) { Text("Manga") }
+                                    TextButton(onClick = onOpenLiveTv) { Text("Live TV") }
+                                    TextButton(onClick = onOpenBallon) { Text("Ballon d'Or") }
                                     TextButton(onClick = onOpenSettings) { Text("Settings") }
                                 }
                             }
@@ -174,6 +178,8 @@ fun HomeScreen(
                                 TextButton(onClick = onOpenFootball) { Text("Football") }
                                 TextButton(onClick = onOpenAnime) { Text("Anime") }
                                 TextButton(onClick = onOpenManga) { Text("Manga") }
+                                    TextButton(onClick = onOpenLiveTv) { Text("Live TV") }
+                                    TextButton(onClick = onOpenBallon) { Text("Ballon d'Or") }
                                 TextButton(onClick = onOpenSettings) { Text("Settings") }
                             }
                         }
