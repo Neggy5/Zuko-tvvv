@@ -47,6 +47,7 @@ val Violet = Color(0xFF6B46FF)
 val ZukoBrush = Brush.linearGradient(listOf(Azure, Violet))
 
 object ZukoType {
+    val title: TextStyle get() = screenTitle
     val heroTitle: TextStyle get() = TextStyle(
         fontSize = 38.sp, lineHeight = 42.sp, fontWeight = FontWeight.ExtraBold,
         letterSpacing = (-0.5).sp, color = TextHi,
