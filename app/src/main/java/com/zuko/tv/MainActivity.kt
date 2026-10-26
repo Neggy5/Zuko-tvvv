@@ -37,6 +37,8 @@ import androidx.navigation.navArgument
 import com.zuko.tv.ui.detail.DetailScreen
 import com.zuko.tv.ui.detail.DetailViewModel
 import com.zuko.tv.ui.LiveFootballScreen
+import com.zuko.tv.ui.AnimeScreen
+import com.zuko.tv.ui.MangaScreen
 import com.zuko.tv.ui.home.HomeScreen
 import com.zuko.tv.ui.home.HomeViewModel
 import com.zuko.tv.ui.player.PlayerScreen
@@ -111,6 +113,8 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (Stri
                 onOpenGenres = { navController.navigate("genres") },
                 onOpenTvShows = { navController.navigate("tvshows") },
                 onOpenFootball = { navController.navigate("football") },
+                onOpenAnime = { navController.navigate("anime") },
+                onOpenManga = { navController.navigate("manga") },
                 onOpenMovie = { id: Int ->
                     runCatching { navController.navigate("detail/$id") }
                 },
@@ -149,6 +153,13 @@ private fun ZukoApp(dark: Boolean, onToggleTheme: () -> Unit, onThemeMode: (Stri
                 onBack = { navController.popBackStack() },
             )
         }
+        composable("anime") {
+            AnimeScreen(client = app.httpClient, onBack = { navController.popBackStack() })
+        }
+        composable("manga") {
+            MangaScreen(client = app.httpClient, onBack = { navController.popBackStack() })
+        }
+
         composable("settings") {
             val mode by app.themeStore.mode.collectAsState()
             com.zuko.tv.ui.SettingsScreen(

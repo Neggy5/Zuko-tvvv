@@ -39,17 +39,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
-import com.zuko.tv.BuildConfig
 import com.zuko.tv.data.FootballApi
 import com.zuko.tv.data.FootballMatch
-import com.zuko.tv.data.FootballStream
 import com.zuko.tv.ui.theme.Ink
 import com.zuko.tv.ui.theme.Panel
-import com.zuko.tv.ui.theme.TextLo
 import com.zuko.tv.ui.theme.TextHi
+import com.zuko.tv.ui.theme.TextLo
 import com.zuko.tv.ui.theme.ZukoType
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -60,8 +62,9 @@ fun LiveFootballScreen(
     onBack: () -> Unit,
 ) {
     val api = remember { FootballApi(client) }
-    var tab by remember { mutableStateOf(0) } // 0 live, 1 today
+    var tab by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(true) }
+    var resolving by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var matches by remember { mutableStateOf<List<FootballMatch>>(emptyList()) }
     var playing by remember { mutableStateOf<Pair<FootballMatch, String>?>(null) }
@@ -73,7 +76,7 @@ fun LiveFootballScreen(
             error = null
             try {
                 if (!api.isConfigured) {
-                    error = "Add RUNFLIX_API_KEY (free at apimovie.runflix.name.ng/request-key) in GitHub secrets / local.properties"
+                    error = "Missing Runflix API key"
                     matches = emptyList()
                 } else {
                     matches = if (tab == 0) api.live() else api.today()
@@ -96,6 +99,10 @@ fun LiveFootballScreen(
             title = "${match.home} vs ${match.away}",
             url = url,
             onBack = { playing = null },
+            onError = { msg ->
+                error = msg
+                playing = null
+            },
         )
         return
     }
@@ -108,7 +115,7 @@ fun LiveFootballScreen(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text("← Back", color = TextHi) }
-            Text("⚽ Live Football", style = ZukoType.screenTitle, color = TextHi, modifier = Modifier.weight(1f))
+            Text("⚽ Live Football", style = ZukoType.title, color = TextHi, modifier = Modifier.weight(1f))
             TextButton(onClick = { reload() }) { Text("Refresh", color = TextHi) }
         }
 
@@ -118,32 +125,35 @@ fun LiveFootballScreen(
         }
 
         Spacer(Modifier.height(8.dp))
-        Text(
-            "Source: Runflix football API",
-            color = TextLo,
-            style = ZukoType.meta,
-        )
-        Spacer(Modifier.height(12.dp))
+        if (resolving) {
+            Text("Opening stream…", color = TextLo, style = ZukoType.meta)
+        }
+        if (error != null) {
+            Text(error!!, color = Color(0xFFFF8A80), style = ZukoType.meta)
+            Spacer(Modifier.height(8.dp))
+        }
 
         when {
             loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Color.White)
             }
-            error != null && matches.isEmpty() -> Text(error!!, color = Color(0xFFFF8A80))
+            matches.isEmpty() -> Text(error ?: "No matches", color = TextLo)
             else -> LazyColumn(
                 contentPadding = PaddingValues(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(matches, key = { it.id }) { m ->
-                    MatchRow(m) {
+                    MatchRow(m, enabled = !resolving) {
                         scope.launch {
+                            resolving = true
+                            error = null
                             try {
-                                val streams = api.streams(m.id)
-                                val best = streams.firstOrNull()?.url
-                                    ?: throw IllegalStateException("No stream for this match")
-                                playing = m to best
+                                val url = api.resolvePlayUrl(m)
+                                playing = m to url
                             } catch (e: Exception) {
-                                error = e.message
+                                error = e.message ?: "Stream failed"
+                            } finally {
+                                resolving = false
                             }
                         }
                     }
@@ -168,25 +178,31 @@ private fun TabChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MatchRow(m: FootballMatch, onPlay: () -> Unit) {
+private fun MatchRow(m: FootballMatch, enabled: Boolean, onPlay: () -> Unit) {
+    val canPlay = m.streamAvailable || m.streamUrl != null || m.isLive
     Column(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(Panel)
-            .clickable(onClick = onPlay)
+            .clickable(enabled = enabled && canPlay, onClick = onPlay)
             .padding(14.dp),
     ) {
         Text(m.league ?: "Football", color = TextLo, style = ZukoType.meta)
         Spacer(Modifier.height(4.dp))
         Text(
-            "${m.home}  ${m.homeScore ?: ""} – ${m.awayScore ?: ""}  ${m.away}",
+            "${m.home}  ${m.homeScore ?: "-"} – ${m.awayScore ?: "-"}  ${m.away}",
             color = TextHi,
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            if (m.isLive) "LIVE · ${m.status}" else m.status,
+            buildString {
+                if (m.isLive) append("LIVE · ")
+                append(m.status)
+                if (canPlay) append(" · Tap to watch")
+                else append(" · No stream yet")
+            },
             color = if (m.isLive) Color(0xFF4ADE80) else TextLo,
             style = ZukoType.meta,
         )
@@ -195,16 +211,34 @@ private fun MatchRow(m: FootballMatch, onPlay: () -> Unit) {
 
 @OptIn(UnstableApi::class)
 @Composable
-private fun LiveStreamPlayer(title: String, url: String, onBack: () -> Unit) {
+private fun LiveStreamPlayer(
+    title: String,
+    url: String,
+    onBack: () -> Unit,
+    onError: (String) -> Unit,
+) {
     val context = LocalContext.current
-    val player = remember {
-        ExoPlayer.Builder(context).build().apply {
-            setMediaItem(MediaItem.fromUri(Uri.parse(url)))
-            prepare()
-            playWhenReady = true
-        }
+    val player = remember(url) {
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("ZUKO-TV/1.0")
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(20_000)
+            .setReadTimeoutMs(30_000)
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(httpFactory))
+            .build()
+            .apply {
+                setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                prepare()
+                playWhenReady = true
+                addListener(object : Player.Listener {
+                    override fun onPlayerError(error: PlaybackException) {
+                        onError(error.localizedMessage ?: "Playback error")
+                    }
+                })
+            }
     }
-    DisposableEffect(Unit) {
+    DisposableEffect(url) {
         onDispose { player.release() }
     }
 
@@ -222,6 +256,7 @@ private fun LiveStreamPlayer(title: String, url: String, onBack: () -> Unit) {
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     this.player = player
+                    useController = true
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT,
