@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -132,12 +134,19 @@ fun HomeScreen(
                             ) {
                                 ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
                                 Spacer(Modifier.width(6.dp))
-                                TextButton(onClick = onOpenGenres) { Text("Genres") }
-                                TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
-                                TextButton(onClick = onOpenFootball) { Text("⚽ Football") }
-                                TextButton(onClick = onOpenAnime) { Text("Anime") }
-                                TextButton(onClick = onOpenManga) { Text("Manga") }
-                                TextButton(onClick = onOpenSettings) { Text("Settings") }
+                                Row(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .horizontalScroll(rememberScrollState()),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    TextButton(onClick = onOpenGenres) { Text("Genres") }
+                                    TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                                    TextButton(onClick = onOpenFootball) { Text("Football") }
+                                    TextButton(onClick = onOpenAnime) { Text("Anime") }
+                                    TextButton(onClick = onOpenManga) { Text("Manga") }
+                                    TextButton(onClick = onOpenSettings) { Text("Settings") }
+                                }
                             }
                         }
                     } else {
@@ -156,12 +165,17 @@ fun HomeScreen(
                             Spacer(Modifier.width(12.dp))
                             ThemeToggle(dark = darkTheme, onToggle = onToggleTheme)
                             Spacer(Modifier.width(8.dp))
-                            TextButton(onClick = onOpenGenres) { Text("Genres") }
-                            TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
-                                TextButton(onClick = onOpenFootball) { Text("⚽ Football") }
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(onClick = onOpenGenres) { Text("Genres") }
+                                TextButton(onClick = onOpenTvShows) { Text("TV Shows") }
+                                TextButton(onClick = onOpenFootball) { Text("Football") }
                                 TextButton(onClick = onOpenAnime) { Text("Anime") }
                                 TextButton(onClick = onOpenManga) { Text("Manga") }
-                            TextButton(onClick = onOpenSettings) { Text("Settings") }
+                                TextButton(onClick = onOpenSettings) { Text("Settings") }
+                            }
                         }
                     }
                 }
